@@ -1191,6 +1191,8 @@ def _classify_title_reference_route(query: str, fnames: Optional[List[str]] = No
     ranked_matches = _rank_title_source_matches(q, limit=3, include_topic_like=True)
     if any((entry.get("match_kind") or "") == "topic_like_title" for entry in ranked_matches):
         return "topic_like_title"
+    if _query_has_strong_business_signal(q) or _query_quality_strong_topic_terms(q):
+        return ""
     if _is_weak_reference_query(q):
         return "weak_title_reference"
     return ""
@@ -4942,6 +4944,180 @@ def _query_has_repeated_noise(query: str) -> bool:
     return False
 
 
+LOCAL_TOPIC_DOMAIN_MARKERS = [
+    "养犬", "犬只", "携犬", "携犬出户", "免疫", "登记",
+    "散装水泥", "预拌混凝土", "现场搅拌", "水泥", "混凝土",
+    "非遗", "非物质文化遗产", "传承人", "传承",
+    "消防", "绿化", "绿地", "树木", "砍伐", "修剪",
+    "地方立法", "立法", "法规案", "草案", "审议",
+    "出租房", "出租人", "承租人", "行政执法", "城市管理", "执法",
+    "违法行为", "监督检查", "法律责任", "行政处罚", "管理职责",
+    "申请程序", "扶持措施", "安全责任", "建设要求", "执法措施",
+    "禁止性规定", "公共安全", "区划管理",
+]
+
+
+GENERIC_QUERY_TERMS = {
+    "规定", "条例", "办法", "管理", "处罚", "责任", "要求", "法规", "规则", "条款",
+    "程序", "条件", "标准", "文件", "文档", "问题", "内容", "什么", "哪些", "怎么",
+    "如何", "是否", "有没有", "请问", "有关", "相关", "关于", "涉及", "一下", "帮我",
+    "帮忙", "查询", "检索", "看看", "查查", "说说", "问问", "一般", "流程", "职责",
+}
+
+
+def _strip_query_wrapper_terms(text: str) -> str:
+    cleaned = _normalize_query(text)
+    if not cleaned:
+        return ""
+    cleaned = re.sub(r"[《》\"'“”‘’（）()，。；;：:?？!！\s]+", " ", cleaned).strip()
+    cleaned = re.sub(r"^(关于|根据|请问|请|查询|检索|说明|帮我|帮忙|看下|看看|查查|问问|说说)", "", cleaned).strip()
+    cleaned = re.sub(
+        r"(是什么|有什么要求|有哪些要求|有哪些规定|有什么规定|有哪些内容|是什么内容|如何处理|怎么处理|如何规定|怎么规定|怎么办|怎么做|有什么|有哪些|吗|呢|呀|啊)$",
+        "",
+        cleaned,
+    ).strip()
+    cleaned = re.sub(r"[？?！!。；;，,：:\s]+$", "", cleaned).strip()
+    return _normalize_query(cleaned)
+
+
+def _local_fallback_anchor_terms(query: str, limit: int = 6) -> List[str]:
+    q = _normalize_query(query)
+    cleaned = _strip_query_wrapper_terms(q)
+    if not q or not cleaned:
+        return []
+    anchors: List[str] = []
+
+    def _add(term: str):
+        value = _strip_query_wrapper_terms(term)
+        if len(value) < 2 or value in GENERIC_QUERY_TERMS:
+            return
+        if _is_question_wrapper_aspect(value):
+            return
+        if value not in anchors:
+            anchors.append(value)
+
+    for marker in sorted(LOCAL_TOPIC_DOMAIN_MARKERS, key=len, reverse=True):
+        if marker not in q:
+            continue
+        _add(marker)
+        for noise in ["规定", "要求", "职责", "责任", "程序", "流程", "标准", "条件", "管理", "使用", "登记", "免疫"]:
+            if marker == noise:
+                continue
+            if marker in cleaned and noise in cleaned and len(marker + noise) <= 12:
+                _add(marker + noise)
+        if len(anchors) >= limit:
+            break
+
+    if not anchors:
+        candidate = cleaned
+        for term in sorted(GENERIC_QUERY_TERMS, key=len, reverse=True):
+            candidate = candidate.replace(term, " ")
+        candidate = re.sub(r"\s+", " ", candidate).strip()
+        if len(candidate) >= 2:
+            _add(candidate)
+    return anchors[: max(1, int(limit))]
+
+
+
+def _seed_anchor_terms_for_probe(query: str, limit: int = 4) -> List[str]:
+    seeds: List[str] = []
+    for term in _query_anchor_terms(query) or _local_fallback_anchor_terms(query):
+        value = _strip_query_wrapper_terms(term)
+        if len(value) < 2 or value in GENERIC_QUERY_TERMS:
+            continue
+        if _is_question_wrapper_aspect(value):
+            continue
+        if value not in seeds:
+            seeds.append(value)
+        if len(seeds) >= max(1, int(limit)):
+            break
+    return seeds
+
+
+def _sqlite_probe_chunks_for_terms(seed_terms: List[str], limit: int = 3) -> List[str]:
+    terms = [_normalize_query(term) for term in seed_terms if _normalize_query(term)]
+    if not terms:
+        return []
+    conn = _lex_db_connect()
+    rows = []
+    probe_sets: List[List[str]] = []
+    primary = terms[0]
+    secondary = [term for term in terms[1:] if term not in primary and primary not in term]
+    if secondary:
+        probe_sets.append([primary, secondary[0]])
+    probe_sets.append([primary])
+    for term in terms[1:]:
+        probe_sets.append([term])
+    for probe_terms in probe_sets:
+        like_sql = " AND ".join(["text LIKE ?" for _ in probe_terms])
+        params = [f"%{term}%" for term in probe_terms]
+        try:
+            rows = conn.execute(
+                f"SELECT rowid, text FROM chunks_fts WHERE {like_sql} LIMIT ?",
+                (*params, max(1, int(limit))),
+            ).fetchall()
+        except Exception:
+            rows = []
+        if rows:
+            break
+    return [str(text or "") for _, text in rows[: max(1, int(limit))] if str(text or "").strip()]
+
+
+def _extract_probe_phrases_from_texts(seed_terms: List[str], texts: List[str], limit: int = 8) -> List[str]:
+    seeds = [_normalize_query(term) for term in seed_terms if _normalize_query(term)]
+    if not seeds:
+        return []
+    counts: Dict[str, int] = {}
+    for text in texts or []:
+        normalized = _normalize_query(text)
+        compact = re.sub(r"\s+", "", normalized)
+        for seed in seeds:
+            if seed not in compact:
+                continue
+            pattern = rf"[\u4e00-\u9fff]{{0,6}}{re.escape(seed)}[\u4e00-\u9fff]{{0,8}}"
+            for match in re.finditer(pattern, compact):
+                phrase = _strip_query_wrapper_terms(match.group(0))
+                phrase = re.sub(r"^[^\u4e00-\u9fff]+", "", phrase)
+                phrase = re.sub(r"[^\u4e00-\u9fff]+$", "", phrase)
+                if len(phrase) < 2 or phrase in GENERIC_QUERY_TERMS:
+                    continue
+                if len(phrase) > 14:
+                    continue
+                counts[phrase] = counts.get(phrase, 0) + 1
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], -len(item[0]), item[0]))
+    out: List[str] = []
+    for phrase, _ in ranked:
+        if any(phrase != existing and phrase in existing for existing in out):
+            continue
+        out.append(phrase)
+        if len(out) >= max(1, int(limit)):
+            break
+    return out
+
+
+def _sqlite_expand_terms_from_corpus(query: str, limit: int = 8) -> List[str]:
+    seeds = _seed_anchor_terms_for_probe(query)
+    if not seeds:
+        return []
+    texts = _sqlite_probe_chunks_for_terms(seeds, limit=3)
+    phrases = _extract_probe_phrases_from_texts(seeds, texts, limit=limit)
+    out: List[str] = []
+    for term in seeds + phrases:
+        value = _strip_query_wrapper_terms(term)
+        if value and value not in out:
+            out.append(value)
+        if len(out) >= max(1, int(limit)):
+            break
+    return out
+
+
+def _expand_retrieval_query_from_corpus(query: str, base_query: str = "", limit: int = 8) -> Tuple[str, List[str]]:
+    base = _normalize_query(base_query or query)
+    expanded_terms = [term for term in _sqlite_expand_terms_from_corpus(query, limit=limit) if term and term not in base]
+    if not expanded_terms:
+        return base, []
+    return _normalize_query(" ".join([base] + expanded_terms)), expanded_terms
+
 def _query_quality_strong_topic_terms(query: str) -> List[str]:
     q = _normalize_query(query)
     if not q:
@@ -4963,6 +5139,10 @@ def _query_quality_strong_topic_terms(query: str) -> List[str]:
         "查询", "检索", "看看", "查查", "说说", "问问",
     }
     cleaned_terms: List[str] = []
+    for term in _local_fallback_anchor_terms(q):
+        if any(marker in term for marker in domain_markers) and term not in cleaned_terms:
+            cleaned_terms.append(term)
+
     for term in _query_anchor_terms(q):
         token = re.sub(r"^(什么|哪些|怎么|如何|是否|有没有|请问|关于|有关|相关|涉及|帮我|帮忙)", "", term).strip()
         token = re.sub(r"(什么|哪些|怎么|如何|是否|有没有|请问)$", "", token).strip()
@@ -5030,9 +5210,10 @@ def _query_has_weak_business_signal(query: str) -> bool:
     q = _normalize_query(query)
     if not q:
         return False
+    if _local_fallback_anchor_terms(q):
+        return True
     weak_business_markers = ["规定", "条例", "办法", "管理", "处罚", "责任", "要求", "法规"]
     return any(marker in q for marker in weak_business_markers)
-
 
 def _query_has_business_signal(query: str) -> bool:
     return _query_has_strong_business_signal(query)
@@ -5419,8 +5600,7 @@ def _query_anchor_terms(query: str) -> List[str]:
     aspects = parsed.get("aspects")
     if isinstance(aspects, list) and aspects:
         return [_normalize_query(str(x or "")) for x in aspects if _normalize_query(str(x or ""))]
-    return []
-
+    return _local_fallback_anchor_terms(q)
 
 def _is_generic_regulation_query(query: str) -> bool:
     if _extract_filename_candidates(query):
@@ -8696,6 +8876,32 @@ def _evidence_observations(
     }
 
 
+
+
+def _post_recall_dynamic_source_lock(query: str, docs: List[Any], route: str, top_n: int = 10) -> Dict[str, Any]:
+    if route not in {"business_topic_qa", "open_regulation_qa", "content_qa"}:
+        return {"action": "none"}
+    if not _seed_anchor_terms_for_probe(query):
+        return {"action": "none"}
+    window = [doc for doc in (docs or [])[: max(1, int(top_n))] if _normalize_filename_for_match(_hit_entity_source(doc) or "")]
+    if len(window) < 3:
+        return {"action": "none"}
+    counts: Dict[str, int] = {}
+    for doc in window:
+        src = _normalize_filename_for_match(_hit_entity_source(doc) or "")
+        counts[src] = counts.get(src, 0) + 1
+    if not counts:
+        return {"action": "none"}
+    top_source, top_count = max(counts.items(), key=lambda item: (item[1], item[0]))
+    share = float(top_count) / float(len(window))
+    ranked_sources = [src for src, _ in sorted(counts.items(), key=lambda item: (-item[1], item[0]))]
+    if share >= 0.9:
+        return {"action": "lock", "source": top_source, "share": share, "sources": ranked_sources}
+    if len(ranked_sources) >= 2 and share <= 0.7:
+        return {"action": "clarify", "share": share, "sources": ranked_sources[:3]}
+    return {"action": "none", "share": share, "sources": ranked_sources}
+
+
 def _select_retrieve_output_docs(docs: List[Any], top_k: int, default_n: int) -> List[Any]:
     if not docs:
         return []
@@ -11812,6 +12018,8 @@ def _is_unlocked_content_query(query: str, route: str) -> bool:
         return False
     q = _normalize_query(query)
     if not q:
+        return False
+    if _local_fallback_anchor_terms(q) and not _has_contextual_doc_reference(q):
         return False
     if _is_generic_document_required_query(q):
         return True
@@ -15303,6 +15511,15 @@ class QueryHandler:
             if isinstance(section_targets, list) and section_targets:
                 qfilters["_llm_section_targets_override"] = list(section_targets)[: int(getattr(config, "QUERY_PARSE_MAX_SECTION_TARGETS", 4))]
 
+        if not active_fnames and query_route in {"business_topic_qa", "open_regulation_qa", "content_qa"}:
+            expanded_retrieval_query, corpus_expanded_terms = _expand_retrieval_query_from_corpus(query, retrieval_query)
+            if corpus_expanded_terms:
+                retrieval_query = expanded_retrieval_query
+                dense_query, _ = _expand_retrieval_query_from_corpus(query, dense_query)
+                qfilters["_llm_anchor_extra"] = list(dict.fromkeys(list(qfilters.get("_llm_anchor_extra") or []) + corpus_expanded_terms[:4]))
+                qfilters["_llm_aspects_extra"] = list(dict.fromkeys(list(qfilters.get("_llm_aspects_extra") or []) + corpus_expanded_terms[:8]))
+                qfilters["_corpus_expanded_terms"] = corpus_expanded_terms
+
         if len(_normalize_query(retrieval_query)) < max(2, int(getattr(config, "MIN_QUERY_CHARS", 2))):
             retrieval_query = retrieval_query_raw
 
@@ -15530,7 +15747,76 @@ class QueryHandler:
         selected_docs = _filter_low_relevance_sources(filtered_docs, score_mode=score_mode, query=retrieval_query)
         selected_docs = _intra_doc_chunk_rerank(retrieval_query, selected_docs, score_mode=score_mode, qtype=qtype)
         post_filter_docs = selected_docs[:]
+        dynamic_lock = _post_recall_dynamic_source_lock(query, retrieve_docs or post_filter_docs or docs, query_route)
+        if dynamic_lock.get("action") == "lock":
+            locked_source = str(dynamic_lock.get("source") or "")
+            if locked_source:
+                active_fnames = [locked_source]
+                source_resolution = {
+                    **dict(source_resolution),
+                    "required": False,
+                    "resolved": True,
+                    "sources": [locked_source],
+                    "candidates": [locked_source],
+                    "reason": "post_recall_dominant_source",
+                    "lock_mode": "implicit_lock",
+                    "lock_confidence": float(dynamic_lock.get("share") or 0.0),
+                    "source_lock_kind": "post_recall_dominant_source",
+                }
         selected_docs = selected_docs[: min(len(selected_docs), final_n)]
+
+        if dynamic_lock.get("action") == "clarify":
+            return {
+                "query": query,
+                "retrieval_query": retrieval_query,
+                "retrieval_query_raw": retrieval_query_raw,
+                "dense_query": dense_query,
+                "llm_parse": llm_parse,
+                "is_comparison": bool(is_comparison),
+                "evidence_query": retrieval_query,
+                "question_type": qtype,
+                "score_mode": score_mode,
+                "docs": docs,
+                "selected_docs": selected_docs,
+                "qfilters": qfilters,
+                "recall_k": recall_k,
+                "final_n": final_n,
+                "rerank_used": bool(reranked_chunk["used"]),
+                "query_route": "open_topic_probe",
+                "weak_query": weak_query,
+                "early_filtered": visible_dense["dropped"] + visible_lex["dropped"],
+                "visibility_filtered": visible_dense["dropped"] + visible_lex["dropped"],
+                "dense_source_scores": dense_source_scores,
+                "post_filter_docs": post_filter_docs,
+                "retrieve_docs": retrieve_docs,
+                "source_lock_required": False,
+                "resolved_source_lock": False,
+                "target_sources": [],
+                "source_lock_candidates": list(dynamic_lock.get("sources") or []),
+                "source_lock_reason": "open_topic_multi_source",
+                "clarification": _build_document_clarification_prompt(list(dynamic_lock.get("sources") or [])),
+                "target_text": "",
+                "lock_mode": "none",
+                "lock_confidence": 0.0,
+                "lock_message_prefix": "",
+                "source_lock_kind": "open_topic_multi_source",
+                "source_resolution_trace": {"post_recall_dynamic_lock": dynamic_lock},
+                "inherited_from_context": False,
+                "compare_subjects": list(source_resolution.get("compare_subjects") or []),
+                "compare_doc_like_subjects": list(source_resolution.get("compare_doc_like_subjects") or []),
+                "compare_missing_targets": list(source_resolution.get("compare_missing_targets") or []),
+                "compare_common_aspects": list(source_resolution.get("compare_common_aspects") or []),
+                "compare_topic_pair": list(source_resolution.get("compare_topic_pair") or []),
+                "compare_canonical_aspects": list(source_resolution.get("compare_canonical_aspects") or []),
+                "compare_expanded_aspects": list(source_resolution.get("compare_expanded_aspects") or []),
+                "compare_source_subqueries": dict(source_resolution.get("compare_source_subqueries") or compare_plan.get("source_subqueries") or {}),
+                "compare_status": source_resolution.get("compare_status") or compare_plan.get("compare_status") or "not_compare",
+                "compare_plan": compare_plan,
+                "compare_source_results": [],
+                "intent_tier": intent_tier,
+                "soft_clarification_required": True,
+                "soft_clarification_reason": "open_topic_multi_source",
+            }
 
         return {
             "query": query,
