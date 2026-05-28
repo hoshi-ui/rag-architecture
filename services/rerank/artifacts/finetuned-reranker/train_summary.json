@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-05-13T03:48:41",
+  "input": "/tmp/legal_rerank_training/reranker_pairs.jsonl",
+  "output_dir": "/tmp/legal_rerank_training/output",
+  "model_name": "/models/BAAI/bge-reranker-base",
+  "epochs": 1,
+  "batch_size": 16,
+  "learning_rate": 2e-05,
+  "train_examples": 533,
+  "dev_examples": 54
+}

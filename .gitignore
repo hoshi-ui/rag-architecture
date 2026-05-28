@@ -1,0 +1,77 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual env
+rag_env/
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Runtime / temp
+tmp/
+temp/
+runtime/
+uploads/
+data/uploads/
+
+# Databases / indexes / vector stores
+database/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite3-journal
+milvus_data/
+chroma/
+faiss_index/
+indexes/
+storage/
+volumes/
+
+# Local models / large artifacts
+local-models/
+models/
+*.bin
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# Test runtime outputs
+rag_test_results.json
+test.json
+*_report.json
+*_latest.json
+tmp_*.py
+
+# Uploaded/source corpus documents
+*.pdf
+*.docx
+*.doc
+*.xlsx
+*.xls
+
+# Node / frontend build
+node_modules/
+dist/
+build/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

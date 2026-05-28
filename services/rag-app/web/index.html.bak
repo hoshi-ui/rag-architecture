@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 系统 - 企业级问答平台</title>
+    <link rel="stylesheet" href="styles.css?v=20260402a">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>RAG System</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-tab="chat">
+                    <i class="fas fa-comment-dots"></i>
+                    <span>问答对话</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="documents">
+                    <i class="fas fa-file-alt"></i>
+                    <span>文档管理</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="analytics">
+                    <i class="fas fa-chart-line"></i>
+                    <span>分析统计</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>系统就绪</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 问答对话 Tab -->
+            <div id="chat-tab" class="tab-content active">
+                <div class="chat-header">
+                    <h1>智能问答</h1>
+                    <p>基于企业知识库的智能问答系统</p>
+                </div>
+                
+                <div class="chat-container">
+                    <!-- 消息列表 -->
+                    <div class="messages-container" id="messages-container">
+                        <div class="message assistant">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                <div class="message-header">
+                                    <span class="sender-name">AI 助手</span>
+                                    <span class="timestamp">刚刚</span>
+                                </div>
+                                <div class="message-text">
+                                    <p>您好！我是 RAG 系统的 AI 助手。我可以基于企业知识库回答您的问题。</p>
+                                    <p>请告诉我您需要什么帮助？</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 输入区域 -->
+                    <div class="input-container">
+                        <div class="input-wrapper">
+                            <textarea 
+                                id="question-input" 
+                                placeholder="请输入您的问题..."
+                                rows="1"
+                            ></textarea>
+                            <button class="send-button" id="send-button">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="input-hints">
+                            <span><kbd>Enter</kbd> 发送</span>
+                            <span><kbd>Shift+Enter</kbd> 换行</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文档管理 Tab -->
+            <div id="documents-tab" class="tab-content">
+                <div class="documents-header">
+                    <h1>文档管理</h1>
+                    <button class="btn-primary" id="upload-button">
+                        <i class="fas fa-upload"></i>
+                        上传文档
+                    </button>
+                    <input
+                        type="file"
+                        id="file-upload-input"
+                        accept=".txt,.md,.markdown,.csv,.json,.pdf,.docx,.xlsx"
+                        multiple
+                        style="display: none;"
+                    >
+                </div>
+                
+                <div class="documents-list" id="documents-list">
+                    <!-- 文档列表将由 JavaScript 动态生成 -->
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <p>暂无文档</p>
+                        <p class="empty-hint">点击"上传文档"开始添加知识库</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分析统计 Tab -->
+            <div id="analytics-tab" class="tab-content">
+                <div class="analytics-header">
+                    <h1>分析统计</h1>
+                </div>
+                
+                <div class="analytics-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>总问答数</h3>
+                            <p class="stat-value" id="total-queries">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>平均响应时间</h3>
+                            <p class="stat-value" id="avg-response">0s</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>知识库文档</h3>
+                            <p class="stat-value" id="total-docs">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>满意度</h3>
+                            <p class="stat-value" id="satisfaction">0%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统设置 Tab -->
+            <div id="settings-tab" class="tab-content">
+                <div class="settings-header">
+                    <h1>系统设置</h1>
+                </div>
+                
+                <div class="settings-form">
+                    <div class="setting-group">
+                        <h3>API 配置</h3>
+                        <div class="form-group">
+                            <label for="api-base-url">API 基础地址</label>
+                            <input 
+                                type="text" 
+                                id="api-base-url" 
+                                value=""
+                                placeholder=""
+                            >
+                        </div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <h3>检索配置</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="top-k">Top K</label>
+                                <input 
+                                    type="number" 
+                                    id="top-k" 
+                                    value="50"
+                                    min="1"
+                                    max="100"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="rerank-enabled">启用重排序</label>
+                                <select id="rerank-enabled">
+                                    <option value="true">是</option>
+                                    <option value="false">否</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <h3>关于</h3>
+                        <p class="version-info">RAG System v1.0.0</p>
+                        <p class="version-info">基于 OpenClaw 架构</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 加载遮罩 -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner">
+                <i class="fas fa-circle-notch fa-spin"></i>
+                <p>正在处理...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const origin = window.location && window.location.origin ? window.location.origin : "";
+            const key = "apiBaseUrl";
+            const existing = (localStorage.getItem(key) || "").trim();
+            if (origin && (!existing || existing.includes("localhost"))) {
+                localStorage.setItem(key, origin);
+            }
+            const input = document.getElementById("api-base-url");
+            if (input && origin && (!input.value || input.value.includes("localhost"))) {
+                input.value = (localStorage.getItem(key) || origin).replace(/\/+$/, "");
+                input.placeholder = origin;
+            }
+        })();
+    </script>
+    <script src="app.js?v=20260402a"></script>
+</body>
+</html>

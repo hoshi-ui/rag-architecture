@@ -1,0 +1,97 @@
+{
+  "query_route": {
+    "order": [
+      "existence",
+      "visibility_probe",
+      "version_switch",
+      "explicit_doc_reference",
+      "explicit_regulation_reference",
+      "weak_title_reference",
+      "business_topic_qa",
+      "open_regulation_qa",
+      "content_qa"
+    ],
+    "weak_title_reference": {
+      "require_no_filenames": true
+    }
+  },
+  "source_resolution": {
+    "title_candidate_limit": 5,
+    "fallback_candidate_limit": 3,
+    "clarification_examples_limit": 3
+  },
+  "question_type_patterns": [
+    {
+      "type": "screening",
+      "keywords": ["哪些文档", "哪些条例", "哪些包含", "哪些涉及", "涉及哪些", "全量筛查", "筛查"]
+    },
+    {
+      "type": "single_doc_extract",
+      "keywords": ["提取条款", "提取措施", "提取处罚", "抽取条款", "抽取措施", "抽取处罚", "条款提取"]
+    },
+    {
+      "type": "summary",
+      "keywords": ["概括", "总结", "核心内容", "概要", "综述"]
+    },
+    {
+      "type": "arch",
+      "keywords": ["架构", "系统设计", "模块", "组件", "存储", "调用", "链路", "流程图", "数据流"]
+    },
+    {
+      "type": "compare",
+      "keywords": ["区别", "差异", "对比", "不同", "vs", "versus", "difference between", "compare"]
+    },
+    {
+      "type": "howto",
+      "keywords": ["怎么做", "如何", "步骤", "流程", "实施", "配置", "安装", "how to", "steps"]
+    },
+    {
+      "type": "definition",
+      "keywords": ["什么是", "是什么", "定义", "meaning of", "what is"]
+    }
+  ],
+  "rerank": {
+    "section_lookup": {
+      "intent_keywords": ["第几章", "哪一章", "哪一节", "章节", "条款", "条文", "总则", "附则", "奖惩", "法律责任", "立法程序", "监督检查"],
+      "restriction_keywords": ["限制", "禁止", "约束", "限养", "禁养"],
+      "restriction_subject_keywords": ["养犬", "犬只", "携犬"],
+      "trigger_qtypes": ["regulation_execution"]
+    },
+    "clause_lookup": {
+      "keywords": ["处罚", "罚款", "罚则", "限制", "禁止", "不得", "应当", "流程", "程序", "步骤", "登记", "审批", "申请", "标准", "时限", "材料", "条款"],
+      "trigger_qtypes": ["single_doc_extract", "regulation_execution", "howto"]
+    },
+    "broad": {
+      "keywords": ["相关内容", "主要内容", "核心内容", "概括", "总结", "综述", "介绍", "是什么", "有哪些"],
+      "trigger_qtypes": ["summary"]
+    }
+  },
+  "query_filters": {
+    "doc_type_rules": [
+      {
+        "value": "regulation",
+        "match_any": ["地方性法规", "管理规定", "法规"]
+      },
+      {
+        "value": "research_report",
+        "match_any": ["研究报告", "调研报告", "白皮书"]
+      }
+    ],
+    "topic_rules": [
+      {
+        "value": "环保治理制度设计",
+        "match_any": ["环保治理制度设计"],
+        "match_all": ["环保", "制度"]
+      },
+      {
+        "value": "AI成熟度研究",
+        "match_any": ["ai成熟度研究"],
+        "match_all": ["人工智能", "成熟度"]
+      }
+    ]
+  },
+  "weak_reference": {
+    "generic_doc_markers": ["条例", "办法", "规定", "规则", "条款"],
+    "generic_need_markers": ["核心", "处罚", "罚款", "程序", "要求", "责任", "禁止", "是否", "可否", "怎么", "如何"]
+  }
+}

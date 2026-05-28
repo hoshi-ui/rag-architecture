@@ -1,0 +1,122 @@
+[
+  {
+    "id": "wr_001",
+    "category": "weak_reference_regulation",
+    "query": "文明行为促进条例核心条款",
+    "expected_sources": ["七台河市文明行为促进条例_2020-12-29_2021-03-05.docx"]
+  },
+  {
+    "id": "wr_002",
+    "category": "weak_reference_regulation",
+    "query": "不文明行为处罚标准",
+    "expected_sources": ["七台河市文明行为促进条例_2020-12-29_2021-03-05.docx"]
+  },
+  {
+    "id": "wr_003",
+    "category": "weak_reference_regulation",
+    "query": "养犬管理条例处罚标准",
+    "expected_sources": ["聊城市养犬管理条例_2020-06-15_2020-09-01.docx"]
+  },
+  {
+    "id": "wr_004",
+    "category": "weak_reference_regulation",
+    "query": "河道管理处罚规定",
+    "expected_sources": ["浏阳河管理条例__.docx"]
+  },
+  {
+    "id": "wr_005",
+    "category": "weak_reference_regulation",
+    "query": "地方立法条例的立法程序",
+    "expected_sources": ["林芝市地方立法条例_2017-05-26_2017-05-26.pdf"]
+  },
+  {
+    "id": "wr_006",
+    "category": "weak_reference_regulation",
+    "query": "红色文化资源保护条例核心条款",
+    "expected_sources": ["林芝市红色文化资源保护利用条例_2023-12-06_2024-01-01.docx"]
+  },
+  {
+    "id": "wr_007",
+    "category": "weak_reference_regulation",
+    "query": "焚烧冥币是否被禁止",
+    "expected_sources": []
+  },
+  {
+    "id": "wr_008",
+    "category": "weak_reference_regulation",
+    "query": "条例核心条款",
+    "expected_sources": []
+  },
+  {
+    "id": "de_001",
+    "category": "document_existence",
+    "query": "文件是否存在：七台河市文明行为促进条例_2020-12-29_2021-03-05.docx",
+    "expected_sources": ["七台河市文明行为促进条例_2020-12-29_2021-03-05.docx"]
+  },
+  {
+    "id": "de_002",
+    "category": "document_existence",
+    "query": "文件是否存在：林芝市地方立法条例_2017-05-26_2017-05-26.pdf",
+    "expected_sources": ["林芝市地方立法条例_2017-05-26_2017-05-26.pdf"]
+  },
+  {
+    "id": "de_003",
+    "category": "document_existence",
+    "query": "检查存在文件：聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+    "expected_sources": ["聊城市养犬管理条例_2020-06-15_2020-09-01.docx"]
+  },
+  {
+    "id": "de_004",
+    "category": "document_existence",
+    "query": "文件是否存在：不存在的条例.docx",
+    "expected_sources": []
+  },
+  {
+    "id": "vs_001",
+    "category": "version_switch",
+    "query": "版本切换后只读新版本：七台河市文明行为促进条例 要点",
+    "expected_sources": ["七台河市文明行为促进条例_2020-12-29_2021-03-05.docx"]
+  },
+  {
+    "id": "vs_002",
+    "category": "version_switch",
+    "query": "版本切换后只读新版本：聊城市养犬管理条例 处罚标准",
+    "expected_sources": ["聊城市养犬管理条例_2020-06-15_2020-09-01.docx"]
+  },
+  {
+    "id": "vs_003",
+    "category": "version_switch",
+    "query": "版本切换后只读新版本：林芝市地方立法条例 立法程序",
+    "expected_sources": ["林芝市地方立法条例_2017-05-26_2017-05-26.pdf"]
+  },
+  {
+    "id": "vs_004",
+    "category": "version_switch",
+    "query": "版本切换后只读新版本：浏阳河管理条例 奖励与处罚",
+    "expected_sources": ["浏阳河管理条例__.docx"]
+  },
+  {
+    "id": "di_001",
+    "category": "deleted_invisible",
+    "query": "删除校验：七台河市文明祭祀条例_2022-11-03_2022-12-01.docx 是否还可检索",
+    "expected_sources": []
+  },
+  {
+    "id": "di_002",
+    "category": "deleted_invisible",
+    "query": "删除校验：laws_20250527.xlsx 是否还可检索",
+    "expected_sources": []
+  },
+  {
+    "id": "di_003",
+    "category": "deleted_invisible",
+    "query": "被删除的版本发布测试.docx 是否还出现在 sources",
+    "expected_sources": []
+  },
+  {
+    "id": "di_004",
+    "category": "deleted_invisible",
+    "query": "删除后是否不可见：文明祭祀条例核心条款",
+    "expected_sources": []
+  }
+]

@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # ==================== 向量数据库 ====================
+  milvus:
+    image: milvusdb/milvus:latest
+    container_name: milvus-standalone
+    command: [ "milvus", "run", "standalone" ]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MILVUS_PATH: /var/lib/milvus
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    networks:
+      - rag-network
+    deploy:
+      resources:
+        reservations:
+          memory: 4G
+    depends_on:
+      - etcd
+      - minio
+
+  # Etcd for Milvus
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: milvus-etcd
+    command: >
+      /usr/local/bin/etcd
+      --data-dir=/etcd
+      --advertise-client-urls=http://etcd:2379
+      --listen-client-urls=http://0.0.0.0:2379
+      --initial-advertise-peer-urls=http://etcd:2380
+      --listen-peer-urls=http://0.0.0.0:2380
+      --initial-cluster=default=http://etcd:2380
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    networks:
+      - rag-network
+
+  # MinIO for Milvus
+  minio:
+    image: minio/minio:latest
+    container_name: milvus-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - rag-network
+
+  # ==================== 嵌入服务 ====================
+  embedding-service:
+    build:
+      context: ./services/embedding
+      dockerfile: Dockerfile
+    container_name: embedding-service
+    environment:
+      - MODEL_NAME=/models/BAAI/bge-m3
+      - MAX_LENGTH=8192
+      - BATCH_SIZE=32
+    volumes:
+      - ./local-models:/models
+      - embedding_cache:/cache
+    networks:
+      - rag-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ports:
+      - "8001:8000"
+
+  # ==================== 重排序服务 ====================
+  rerank-service:
+    build:
+      context: ./services/rerank
+      dockerfile: Dockerfile
+    container_name: rerank-service
+    environment:
+      - MODEL_NAME=/models/BAAI/bge-reranker-base
+      - MAX_LENGTH=512
+      - BATCH_SIZE=16
+    volumes:
+      - ./local-models:/models
+    networks:
+      - rag-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ports:
+      - "8002:8000"
+
+  # ==================== 应用服务 ====================
+  rag-app:
+    build:
+      context: ./services/rag-app
+      dockerfile: Dockerfile
+    container_name: rag-app
+    env_file:
+      - ./config/app.env
+    environment:
+      LEXICAL_DB_FILE: /storage/uploads/lexical_index.db
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./ocr-bridge:/ocr-bridge
+      - rag_storage:/storage
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - rag-network
+    depends_on:
+      - milvus
+      - embedding-service
+      - rerank-service
+      - redis
+    restart: unless-stopped
+
+  # ==================== 缓存服务 ====================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6380:6380"
+    networks:
+      - rag-network
+
+  # ==================== Ollama (本地 LLM) ====================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - rag-network
+
+  # ==================== 监控服务 ====================
+
+volumes:
+  milvus_data:
+  etcd_data:
+  minio_data:
+  redis_data:
+  ollama_data:
+  prometheus_data:
+  grafana_data:
+  embedding_cache:
+  rag_storage:
+
+networks:
+  rag-network:
+    driver: bridge

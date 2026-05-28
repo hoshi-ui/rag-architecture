@@ -1,0 +1,68 @@
+[
+  {
+    "id": "zh_001",
+    "category": "title_fragment_positive",
+    "query": "地方立法条例 立法程序",
+    "expected_sources": ["林芝市地方立法条例_2017-05-26_2017-05-26.pdf"]
+  },
+  {
+    "id": "zh_002",
+    "category": "title_fragment_positive",
+    "query": "文明行为促进条例 法律责任",
+    "expected_sources": ["七台河市文明行为促进条例_2020-12-29_2021-03-05.docx"]
+  },
+  {
+    "id": "zh_003",
+    "category": "alias_fragment_positive",
+    "query": "非遗保护条例 奖励与处罚",
+    "expected_sources": ["陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.docx"]
+  },
+  {
+    "id": "zh_004",
+    "category": "alias_fragment_positive",
+    "query": "议事规则 审议程序",
+    "expected_sources": ["林芝市人民代表大会常务委员会议事规则_2024-12-06_2024-12-06.docx"]
+  },
+  {
+    "id": "zh_005",
+    "category": "filename_fragment_positive",
+    "query": "浏阳河管理条例__ 奖励与处罚",
+    "expected_sources": ["浏阳河管理条例__.docx"]
+  },
+  {
+    "id": "zh_006",
+    "category": "filename_fragment_positive",
+    "query": "七台河市文明行为促进条例_2020-12-29 法律责任",
+    "expected_sources": ["七台河市文明行为促进条例_2020-12-29_2021-03-05.docx"]
+  },
+  {
+    "id": "zh_007",
+    "category": "weak_reference_positive",
+    "query": "河道管理处罚规定",
+    "expected_sources": ["浏阳河管理条例__.docx"]
+  },
+  {
+    "id": "zh_008",
+    "category": "weak_reference_positive",
+    "query": "红色文化资源保护条例核心条款",
+    "expected_sources": ["林芝市红色文化资源保护利用条例_2023-12-06_2024-01-01.docx"]
+  },
+  {
+    "id": "zh_009",
+    "category": "weak_anchor_negative",
+    "query": "法律责任有哪些规定",
+    "expected_sources": []
+  },
+  {
+    "id": "zh_010",
+    "category": "weak_anchor_negative",
+    "query": "管理范围和禁止行为有哪些规定",
+    "expected_sources": []
+  },
+  {
+    "id": "zh_011",
+    "category": "weak_anchor_negative",
+    "query": "表彰奖励条款",
+    "expected_sources": []
+  }
+]

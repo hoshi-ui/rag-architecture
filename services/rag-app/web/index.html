@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>法规知识库 RAG 服务 - 专业问答工作台</title>
+    <link rel="stylesheet" href="styles.css?v=20260511ui">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-mark"><i class="fas fa-scale-balanced"></i></span>
+                    <span class="logo-copy">
+                        <strong>RegVault RAG</strong>
+                    </span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="主导航">
+                <a href="#" class="nav-item active" data-tab="chat">
+                    <i class="fas fa-message"></i>
+                    <span>问答工作台</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="documents">
+                    <i class="fas fa-file-shield"></i>
+                    <span>文档治理</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="analytics">
+                    <i class="fas fa-chart-simple"></i>
+                    <span>运行分析</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="settings">
+                    <i class="fas fa-sliders"></i>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-card">
+                    <div class="status-indicator">
+                        <span class="status-dot"></span>
+                        <span>服务运行中</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div id="chat-tab" class="tab-content active">
+                <section class="page-hero">
+                    <div>
+                        <span class="eyebrow">Enterprise Knowledge Base</span>
+                        <h1>法规知识库问答工作台</h1>
+                        <p>面向法规、制度、标准文档的可溯源问答；支持上传、检索、证据引用与运行观测。</p>
+                    </div>
+                    <div class="hero-actions">
+                        <span class="pill success"><i class="fas fa-circle-check"></i> 索引就绪</span>
+                        <span class="pill"><i class="fas fa-layer-group"></i> Dense + Lexical</span>
+                    </div>
+                </section>
+
+                <section class="chat-workspace">
+                    <div class="chat-container">
+                        <div class="chat-toolbar">
+                            <div>
+                                <h2>智能问答</h2>
+                                <p>建议问题中带上文档名、章节或主题词，可提升命中精度。</p>
+                            </div>
+                            <div class="toolbar-meta">
+                                <span><i class="fas fa-bolt"></i> 低置信触发重排</span>
+                                <span><i class="fas fa-link"></i> 来源可追溯</span>
+                            </div>
+                        </div>
+
+                        <div class="messages-container" id="messages-container">
+                            <div class="message assistant">
+                                <div class="message-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="message-content">
+                                    <div class="message-header">
+                                        <span class="sender-name">AI 助手</span>
+                                        <span class="timestamp">刚刚</span>
+                                    </div>
+                                    <div class="message-text">
+                                        <p>您好，我可以基于已入库的法规、制度与企业知识文档回答问题，并尽量给出可追溯来源。</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="input-container">
+                            <div class="prompt-strip" aria-label="示例问题">
+                                <button type="button" class="prompt-chip">查询某条例处罚规定</button>
+                                <button type="button" class="prompt-chip">对比两份文档差异</button>
+                                <button type="button" class="prompt-chip">说明引用来源</button>
+                            </div>
+                            <div class="input-wrapper">
+                                <textarea
+                                    id="question-input"
+                                    placeholder="请输入问题"
+                                    rows="1"
+                                ></textarea>
+                                <button class="send-button" id="send-button" aria-label="发送问题">
+                                    <i class="fas fa-paper-plane"></i>
+                                    <span>发送</span>
+                                </button>
+                            </div>
+                            <div class="input-hints">
+                                <span><kbd>Enter</kbd> 发送</span>
+                                <span><kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
+                                <span>建议包含：文档名 / 章节 / 主题</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <aside class="insight-panel">
+                        <div class="panel-card quality-card">
+                            <div class="panel-title">
+                                <h3>回答质量提示</h3>
+                                <i class="fas fa-shield-halved"></i>
+                            </div>
+                            <ul class="quality-list">
+                                <li><span></span> 文档名明确：优先锁定来源</li>
+                                <li><span></span> 主题词明确：提升章节命中</li>
+                                <li><span></span> 证据不足：应返回澄清或拒答</li>
+                            </ul>
+                        </div>
+
+                        <div class="panel-card compact-stats">
+                            <div class="mini-stat">
+                                <strong id="total-docs-side">—</strong>
+                                <span>入库文档</span>
+                            </div>
+                            <div class="mini-stat">
+                                <strong id="avg-response-side">—</strong>
+                                <span>平均响应</span>
+                            </div>
+                        </div>
+
+                        <div class="panel-card source-preview">
+                            <div class="panel-title">
+                                <h3>来源展示规范</h3>
+                                <i class="fas fa-quote-left"></i>
+                            </div>
+                            <p>答案下方保留来源卡片，展示文档名、命中分数、章节路径与证据片段，避免“看似正确但不可审计”。</p>
+                        </div>
+                    </aside>
+                </section>
+            </div>
+
+            <div id="documents-tab" class="tab-content">
+                <section class="page-hero compact">
+                    <div>
+                        <span class="eyebrow">Document Governance</span>
+                        <h1>文档治理</h1>
+                    </div>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary" id="upload-button">
+                            <i class="fas fa-upload"></i>
+                            上传文档
+                        </button>
+                        <input
+                            type="file"
+                            id="file-upload-input"
+                            accept=".txt,.md,.markdown,.csv,.json,.pdf,.docx,.xlsx"
+                            multiple
+                            style="display: none;"
+                        >
+                    </div>
+                </section>
+
+                <section class="document-layout">
+                    <div class="upload-panel">
+                        <div class="upload-visual"><i class="fas fa-cloud-arrow-up"></i></div>
+                        <h2>构建可信知识库</h2>
+                        <p>建议文件名包含法规全称、发布日期或施行日期，便于版本切换与来源归因。</p>
+                        <div class="format-row">
+                            <span>PDF</span><span>DOCX</span><span>XLSX</span><span>TXT</span><span>MD</span>
+                        </div>
+                    </div>
+
+                    <div class="documents-list" id="documents-list">
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p>暂无文档</p>
+                            <p class="empty-hint">点击“上传文档”开始添加知识库</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="analytics-tab" class="tab-content">
+                <section class="page-hero compact">
+                    <div>
+                        <span class="eyebrow">Runtime Observability</span>
+                        <h1>运行分析</h1>
+                    </div>
+                </section>
+
+                <div class="analytics-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-comments"></i></div>
+                        <div class="stat-content">
+                            <h3>总问答数</h3>
+                            <p class="stat-value" id="total-queries">0</p>
+                            <span>累计用户查询</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                        <div class="stat-content">
+                            <h3>平均响应时间</h3>
+                            <p class="stat-value" id="avg-response">0s</p>
+                            <span>端到端返回耗时</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-file-lines"></i></div>
+                        <div class="stat-content">
+                            <h3>知识库文档</h3>
+                            <p class="stat-value" id="total-docs">0</p>
+                            <span>已完成索引文档</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-content">
+                            <h3>满意度</h3>
+                            <p class="stat-value" id="satisfaction">0%</p>
+                            <span>用户反馈占比</span>
+                        </div>
+                    </div>
+                </div>
+
+                <section class="observability-grid">
+                    <div class="panel-card">
+                        <h3>建议新增指标</h3>
+                        <div class="metric-list">
+                            <span>wrong_source_rate</span>
+                            <span>mis_refusal_rate</span>
+                            <span>negative_clean_rate</span>
+                            <span>retrieval_latency</span>
+                        </div>
+                    </div>
+                    <div class="panel-card">
+                        <h3>近期运行状态</h3>
+                        <div class="timeline-list">
+                            <p><i class="fas fa-circle"></i> 文档索引完成后显示 completed</p>
+                            <p><i class="fas fa-circle"></i> 删除中 / 删除失败需要单独状态</p>
+                            <p><i class="fas fa-circle"></i> 来源不足时进入 evidence_insufficient</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="settings-tab" class="tab-content">
+                <section class="page-hero compact">
+                    <div>
+                        <span class="eyebrow">System Configuration</span>
+                        <h1>系统设置</h1>
+                    </div>
+                </section>
+
+                <div class="settings-form">
+                    <div class="setting-group">
+                        <div class="setting-heading">
+                            <h3>API 配置</h3>
+                            <span>连接后端服务</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="api-base-url">API 基础地址</label>
+                            <input
+                                type="text"
+                                id="api-base-url"
+                                value=""
+                                placeholder=""
+                            >
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <div class="setting-heading">
+                            <h3>检索配置</h3>
+                            <span>影响召回深度与重排策略</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="top-k">Top K</label>
+                                <input
+                                    type="number"
+                                    id="top-k"
+                                    value="50"
+                                    min="1"
+                                    max="100"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="rerank-enabled">启用重排序</label>
+                                <select id="rerank-enabled">
+                                    <option value="true">是</option>
+                                    <option value="false">否</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group about-group">
+                        <div class="setting-heading">
+                            <h3>关于</h3>
+                            <span>当前版本信息</span>
+                        </div>
+                        <p class="version-info">RAG System v1.0.0</p>
+                        <p class="version-info">基于 OpenClaw 架构</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner">
+                <i class="fas fa-circle-notch fa-spin"></i>
+                <p>正在处理...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const origin = window.location && window.location.origin ? window.location.origin : "";
+            const key = "apiBaseUrl";
+            const existing = (localStorage.getItem(key) || "").trim();
+            if (origin && (!existing || existing.includes("localhost"))) {
+                localStorage.setItem(key, origin);
+            }
+            const input = document.getElementById("api-base-url");
+            if (input && origin && (!input.value || input.value.includes("localhost"))) {
+                input.value = (localStorage.getItem(key) || origin).replace(/\/+$/, "");
+                input.placeholder = origin;
+            }
+        })();
+    </script>
+    <script src="app.js?v=20260402a"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # RAG 应用监控
+  - job_name: 'rag-app'
+    static_configs:
+      - targets: ['rag-app:8080']
+    metrics_path: '/metrics'
+    
+  # Milvus 监控
+  - job_name: 'milvus'
+    static_configs:
+      - targets: ['milvus:9091']
+    
+  # Embedding 服务监控
+  - job_name: 'embedding'
+    static_configs:
+      - targets: ['embedding-service:8000']
+    
+  # Rerank 服务监控
+  - job_name: 'rerank'
+    static_configs:
+      - targets: ['rerank-service:8000']
+    
+  # Redis 监控
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "hc_001",
+    "category": "competitive_positive",
+    "query": "浏阳河条例 表彰或者奖励",
+    "expected_sources": ["浏阳河管理条例__.docx"]
+  },
+  {
+    "id": "hc_002",
+    "category": "competitive_positive",
+    "query": "浏阳河条例 管理范围和禁止行为",
+    "expected_sources": ["浏阳河管理条例__.docx"]
+  },
+  {
+    "id": "hc_003",
+    "category": "competitive_positive",
+    "query": "非物质文化遗产保护条例 奖励与处罚",
+    "expected_sources": ["陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.docx"]
+  },
+  {
+    "id": "hc_004",
+    "category": "competitive_positive",
+    "query": "出租房安全管理条例 法律责任",
+    "expected_sources": ["林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"]
+  },
+  {
+    "id": "hc_005",
+    "category": "competitive_positive",
+    "query": "红色文化资源保护利用条例 法律责任",
+    "expected_sources": ["林芝市红色文化资源保护利用条例_2023-12-06_2024-01-01.docx"]
+  },
+  {
+    "id": "hc_006",
+    "category": "competitive_positive",
+    "query": "文明行为促进条例 法律责任",
+    "expected_sources": ["七台河市文明行为促进条例_2020-12-29_2021-03-05.docx"]
+  },
+  {
+    "id": "hc_007",
+    "category": "competitive_positive",
+    "query": "地方立法条例 立法工作程序",
+    "expected_sources": ["林芝市地方立法条例_2017-05-26_2017-05-26.pdf"]
+  },
+  {
+    "id": "hc_008",
+    "category": "competitive_positive",
+    "query": "议事规则 审议程序",
+    "expected_sources": ["林芝市人民代表大会常务委员会议事规则_2024-12-06_2024-12-06.docx"]
+  },
+  {
+    "id": "hc_009",
+    "category": "competitive_version_switch",
+    "query": "版本切换后只读新版本：浏阳河条例 奖励与处罚",
+    "expected_sources": ["浏阳河管理条例__.docx"]
+  },
+  {
+    "id": "hc_010",
+    "category": "competitive_version_switch",
+    "query": "版本切换后只读新版本：议事规则 审议程序",
+    "expected_sources": ["林芝市人民代表大会常务委员会议事规则_2024-12-06_2024-12-06.docx"]
+  },
+  {
+    "id": "hc_011",
+    "category": "competitive_negative",
+    "query": "奖励与处罚有哪些规定",
+    "expected_sources": []
+  },
+  {
+    "id": "hc_012",
+    "category": "competitive_negative",
+    "query": "法律责任有哪些规定",
+    "expected_sources": []
+  },
+  {
+    "id": "hc_013",
+    "category": "competitive_negative",
+    "query": "管理范围和禁止行为有哪些规定",
+    "expected_sources": []
+  },
+  {
+    "id": "hc_014",
+    "category": "alias_gap_positive",
+    "query": "非遗保护条例 奖励与处罚",
+    "expected_sources": ["陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.docx"]
+  },
+  {
+    "id": "hc_015",
+    "category": "alias_gap_positive",
+    "query": "版本切换后只读新版本：非遗保护条例 奖励与处罚",
+    "expected_sources": ["陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.docx"]
+  },
+  {
+    "id": "hc_016",
+    "category": "underspecified_negative_gap",
+    "query": "表彰奖励条款",
+    "expected_sources": []
+  }
+]
