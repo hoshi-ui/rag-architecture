@@ -73,6 +73,8 @@ services:
       - MODEL_NAME=/models/BAAI/bge-m3
       - MAX_LENGTH=8192
       - BATCH_SIZE=32
+      - ENABLE_SPARSE_EMBEDDING=true
+      - BGE_M3_USE_FP16=true
     volumes:
       - ./local-models:/models
       - embedding_cache:/cache
@@ -121,10 +123,14 @@ services:
     env_file:
       - ./config/app.env
     environment:
-      LEXICAL_DB_FILE: /storage/uploads/lexical_index.db
+      RAG_DATABASE_DIR: /database
+      SQLITE_BUSY_TIMEOUT_SEC: "60"
     volumes:
       - ./config:/app/config
+      - ./database:/database
       - ./logs:/app/logs
+      - ./evals:/app/evals
+      - ./reports:/app/reports
       - ./ocr-bridge:/ocr-bridge
       - rag_storage:/storage
     ports:
@@ -137,21 +143,9 @@ services:
       - milvus
       - embedding-service
       - rerank-service
-      - redis
     restart: unless-stopped
 
   # ==================== 缓存服务 ====================
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6380:6380"
-    networks:
-      - rag-network
-
   # ==================== Ollama (本地 LLM) ====================
   ollama:
     image: ollama/ollama:latest
@@ -176,7 +170,6 @@ volumes:
   milvus_data:
   etcd_data:
   minio_data:
-  redis_data:
   ollama_data:
   prometheus_data:
   grafana_data:

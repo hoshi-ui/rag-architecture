@@ -1,0 +1,2 @@
+"""RAG backend application package."""
+

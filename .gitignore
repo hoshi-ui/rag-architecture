@@ -75,3 +75,47 @@ build/
 .DS_Store
 .vscode/
 .idea/
+
+# Local secrets
+config/app.env
+.env
+.env.*
+!.env.example
+
+# Runtime data
+database/
+data/
+reports/
+logs/
+uploads/
+ocr-bridge/
+
+# Local models and training artifacts
+local-models/
+models/
+services/rerank/artifacts/
+services/embedding/artifacts/
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.bin
+*.gguf
+
+# Raw uploaded/source documents
+documents/
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+
+# Generated eval outputs
+evals/generated/
+*_report.json
+*_latest.json
+
+# Backups / caches
+*.bak
+__pycache__/
+.pytest_cache/

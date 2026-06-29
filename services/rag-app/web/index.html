@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>法规知识库 RAG 服务 - 专业问答工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260511ui">
+    <link rel="stylesheet" href="styles.css?v=20260611headergap">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -71,7 +71,6 @@
                                 <p>建议问题中带上文档名、章节或主题词，可提升命中精度。</p>
                             </div>
                             <div class="toolbar-meta">
-                                <span><i class="fas fa-bolt"></i> 低置信触发重排</span>
                                 <span><i class="fas fa-link"></i> 来源可追溯</span>
                             </div>
                         </div>
@@ -87,7 +86,7 @@
                                         <span class="timestamp">刚刚</span>
                                     </div>
                                     <div class="message-text">
-                                        <p>您好，我可以基于已入库的法规、制度与企业知识文档回答问题，并尽量给出可追溯来源。</p>
+                                        <p>您好，我可以基于已入库的法规、制度与企业知识文档回答问题，并给出可追溯来源。</p>
                                     </div>
                                 </div>
                             </div>
@@ -113,43 +112,9 @@
                             <div class="input-hints">
                                 <span><kbd>Enter</kbd> 发送</span>
                                 <span><kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
-                                <span>建议包含：文档名 / 章节 / 主题</span>
                             </div>
                         </div>
                     </div>
-
-                    <aside class="insight-panel">
-                        <div class="panel-card quality-card">
-                            <div class="panel-title">
-                                <h3>回答质量提示</h3>
-                                <i class="fas fa-shield-halved"></i>
-                            </div>
-                            <ul class="quality-list">
-                                <li><span></span> 文档名明确：优先锁定来源</li>
-                                <li><span></span> 主题词明确：提升章节命中</li>
-                                <li><span></span> 证据不足：应返回澄清或拒答</li>
-                            </ul>
-                        </div>
-
-                        <div class="panel-card compact-stats">
-                            <div class="mini-stat">
-                                <strong id="total-docs-side">—</strong>
-                                <span>入库文档</span>
-                            </div>
-                            <div class="mini-stat">
-                                <strong id="avg-response-side">—</strong>
-                                <span>平均响应</span>
-                            </div>
-                        </div>
-
-                        <div class="panel-card source-preview">
-                            <div class="panel-title">
-                                <h3>来源展示规范</h3>
-                                <i class="fas fa-quote-left"></i>
-                            </div>
-                            <p>答案下方保留来源卡片，展示文档名、命中分数、章节路径与证据片段，避免“看似正确但不可审计”。</p>
-                        </div>
-                    </aside>
                 </section>
             </div>
 
@@ -283,6 +248,11 @@
                                 value=""
                                 placeholder=""
                             >
+                            <div class="api-base-meta">
+                                <p class="api-base-line">当前页面地址：<span id="current-page-origin"></span></p>
+                                <p class="api-base-line">当前实际请求地址：<span id="effective-api-base"></span></p>
+                                <button type="button" class="btn-secondary api-base-reset" id="reset-api-base">重置为当前页面地址</button>
+                            </div>
                         </div>
                     </div>
 
@@ -347,6 +317,8 @@
             }
         })();
     </script>
-    <script src="app.js?v=20260402a"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
+    <script src="app.js?v=20260611headergap"></script>
 </body>
 </html>

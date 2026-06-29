@@ -4,6 +4,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
 RUN apt-get update && apt-get install -y \
+    antiword \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

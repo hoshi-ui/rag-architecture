@@ -39,6 +39,19 @@ function resolveApiBaseUrl() {
     return base;
 }
 
+function getEffectiveApiBaseUrl() {
+    return resolveApiBaseUrl() || normalizeBaseUrl(DEFAULT_API_BASE_URL);
+}
+
+function updateApiBaseStatus() {
+    if (elements.currentPageOrigin) {
+        elements.currentPageOrigin.textContent = normalizeBaseUrl(DEFAULT_API_BASE_URL) || '-';
+    }
+    if (elements.effectiveApiBase) {
+        elements.effectiveApiBase.textContent = getEffectiveApiBaseUrl() || '-';
+    }
+}
+
 // 状态
 let state = {
     currentTab: 'chat',
@@ -64,6 +77,9 @@ const elements = {
     fileUploadInput: document.getElementById('file-upload-input'),
     documentsList: document.getElementById('documents-list'),
     apiUrlInput: document.getElementById('api-base-url'),
+    currentPageOrigin: document.getElementById('current-page-origin'),
+    effectiveApiBase: document.getElementById('effective-api-base'),
+    resetApiBaseButton: document.getElementById('reset-api-base'),
     topKInput: document.getElementById('top-k'),
     rerankSelect: document.getElementById('rerank-enabled')
 };
@@ -108,6 +124,15 @@ function initializeEventListeners() {
     elements.apiUrlInput.addEventListener('change', saveSettings);
     elements.topKInput.addEventListener('change', saveSettings);
     elements.rerankSelect.addEventListener('change', saveSettings);
+    elements.resetApiBaseButton.addEventListener('click', resetApiBaseUrl);
+}
+
+function resetApiBaseUrl() {
+    const origin = normalizeBaseUrl(DEFAULT_API_BASE_URL);
+    if (elements.apiUrlInput) {
+        elements.apiUrlInput.value = origin;
+    }
+    saveSettings();
 }
 
 // Tab 切换
@@ -164,12 +189,24 @@ async function sendMessage() {
         const data = await response.json();
         const responseTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
-        const refused = data && data.metadata && data.metadata.refused;
+        const meta = (data && data.metadata) || {};
+        const refused = meta.refused;
         if (refused) {
             const firstSrc = (data.sources && data.sources[0] && data.sources[0].source) || '';
-            const candidates = ((data && data.metadata && data.metadata.candidate_sources) || []).filter(Boolean);
+            const candidates = (meta.candidate_sources || []).filter(Boolean);
             let msg = '';
-            if (refused === 'retrieval_error') {
+            let showAsAssistant = false;
+            if (
+                (meta.final_channel === 'document_clarification' ||
+                    meta.answer_mode === 'clarification' ||
+                    refused === 'tier2_soft_confirm' ||
+                    refused === 'tier3_summary_clarification' ||
+                    refused === 'document_clarification') &&
+                (data.answer || meta.clarification)
+            ) {
+                msg = data.answer || meta.clarification;
+                showAsAssistant = true;
+            } else if (refused === 'retrieval_error') {
                 msg = '知识库检索暂时不可用，请稍后重试。';
             } else if (refused === 'section_anchor_ambiguous') {
                 if (candidates.length > 0) {
@@ -190,9 +227,13 @@ async function sendMessage() {
             } else {
                 msg = '未在知识库中找到足够相关的证据来回答该问题。';
             }
-            addErrorMessage(msg);
+            if (showAsAssistant) {
+                addAssistantMessage(msg, data.sources || [], responseTime, data.metadata || {});
+            } else {
+                addErrorMessage(msg);
+            }
         } else {
-            addAssistantMessage(data.answer, data.sources, responseTime);
+            addAssistantMessage(data.answer, data.sources, responseTime, data.metadata || {});
         }
 
         // 更新统计
@@ -246,17 +287,19 @@ function renderMessage(message) {
     `;
 
     elements.messagesContainer.appendChild(messageDiv);
+    enhanceCitationRefs(messageDiv, message);
 }
 
 // 添加助手消息（带来源）
-function addAssistantMessage(answer, sources, responseTime) {
+function addAssistantMessage(answer, sources, responseTime, metadata = {}) {
     const message = {
         id: Date.now(),
         content: answer,
         role: 'assistant',
         sources: sources,
         timestamp: new Date().toISOString(),
-        responseTime: responseTime
+        responseTime: responseTime,
+        serverTiming: (metadata && metadata.server_timing_ms) || null
     };
 
     state.messages.push(message);
@@ -271,25 +314,10 @@ function renderAssistantMessage(message) {
     messageDiv.id = `message-${message.id}`;
 
     const timestamp = formatTimestamp(message.timestamp);
+    const serverTiming = formatServerTiming(message.serverTiming);
+    const answerHtml = renderAssistantMarkdown(message.content);
 
-    let sourcesHtml = '';
-    if (message.sources && message.sources.length > 0) {
-        sourcesHtml = `
-            <div class="sources-list">
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
-                    相关片段（共 ${message.sources.length} 条）：
-                </p>
-                ${message.sources.map(source => `
-                    <div class="source-item">
-                        <div><strong>命中文档：</strong>${escapeHtml(source.source || '')}</div>
-                        <p style="font-size: 0.875rem; margin-top: 0.25rem; color: var(--text-secondary);">
-                            <strong>相关片段：</strong>${escapeHtml(source.text || '')}
-                        </p>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
+    const sourcesHtml = buildEvidenceSection(message);
 
     messageDiv.innerHTML = `
         <div class="message-avatar">
@@ -300,14 +328,40 @@ function renderAssistantMessage(message) {
                 <span class="sender-name">AI 助手</span>
                 <span class="timestamp">${timestamp} (响应：${message.responseTime}s)</span>
             </div>
-            <div class="message-text">
-                <p>${escapeHtml(message.content)}</p>
+            <div class="message-text assistant-answer-text">
+                ${answerHtml}
             </div>
             ${sourcesHtml}
         </div>
     `;
 
     elements.messagesContainer.appendChild(messageDiv);
+    enhanceCitationRefs(messageDiv, message);
+}
+
+function formatServerTiming(serverTiming) {
+    if (!serverTiming || typeof serverTiming !== 'object') {
+        return '';
+    }
+
+    const parts = [];
+    if (typeof serverTiming.total_request === 'number') {
+        parts.push(`总计 ${serverTiming.total_request.toFixed(0)}ms`);
+    }
+    if (typeof serverTiming.recall === 'number') {
+        parts.push(`检索 ${serverTiming.recall.toFixed(0)}ms`);
+    }
+    if (typeof serverTiming.pre_answer === 'number') {
+        parts.push(`整理 ${serverTiming.pre_answer.toFixed(0)}ms`);
+    }
+    if (typeof serverTiming.answer === 'number') {
+        parts.push(`生成 ${serverTiming.answer.toFixed(0)}ms`);
+    }
+    if (typeof serverTiming.handler_total === 'number' && typeof serverTiming.total_request !== 'number') {
+        parts.push(`总计 ${serverTiming.handler_total.toFixed(0)}ms`);
+    }
+
+    return parts.join(' / ');
 }
 
 // 添加错误消息
@@ -344,6 +398,348 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function getEvidenceSources(message) {
+    return Array.isArray(message.sources) ? message.sources : [];
+}
+
+function getSourceRef(source, index) {
+    const ref = source && source.ref !== undefined && source.ref !== null ? source.ref : index + 1;
+    return String(ref).replace(/^\[|\]$/g, '');
+}
+
+function getSafeEvidenceId(messageId, ref) {
+    return `evidence-${String(messageId).replace(/[^\w-]/g, '')}-${String(ref).replace(/[^\w-]/g, '')}`;
+}
+
+function getSourceMeta(source) {
+    return (source && (source.metadata || source.meta)) || {};
+}
+
+function getSourceText(source) {
+    return String((source && (source.text || source.content || source.chunk_text)) || '').trim();
+}
+
+function compactText(text, maxLength = 110) {
+    const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+    if (normalized.length <= maxLength) {
+        return normalized;
+    }
+    return `${normalized.slice(0, maxLength).trim()}...`;
+}
+
+function getEvidenceChunkLabel(source) {
+    const meta = getSourceMeta(source);
+    const chunkValue = source && (source.chunk_index ?? source.chunk_id ?? meta.chunk_index ?? meta.chunk_id);
+    const totalValue = source && (source.chunk_count ?? source.total_chunks ?? meta.chunk_count ?? meta.total_chunks);
+    const chunkNumber = Number(chunkValue);
+    const totalNumber = Number(totalValue);
+
+    if (Number.isFinite(chunkNumber) && Number.isFinite(totalNumber) && totalNumber > 0) {
+        const displayChunk = chunkNumber >= 0 && chunkNumber < totalNumber ? chunkNumber + 1 : chunkNumber;
+        return `第 ${displayChunk}/${totalNumber} 块`;
+    }
+    if (Number.isFinite(chunkNumber)) {
+        return `第 ${chunkNumber + 1} 块`;
+    }
+    const chunkRange = String((source && source.chunk_range) || meta.chunk_range || '').trim();
+    if (chunkRange) {
+        const parts = chunkRange.split('-').map(part => Number(part.trim()));
+        if (parts.length === 2 && parts.every(Number.isFinite)) {
+            return `第 ${parts[0] + 1}-${parts[1] + 1} 块`;
+        }
+        if (parts.length === 1 && Number.isFinite(parts[0])) {
+            return `第 ${parts[0] + 1} 块`;
+        }
+        return `第 ${chunkRange} 块`;
+    }
+    return '证据片段';
+}
+
+function getEvidenceSummary(source) {
+    const meta = getSourceMeta(source);
+    const explicit = meta.section_title || meta.section || meta.title || source?.section_title || source?.section;
+    if (explicit) {
+        return compactText(explicit, 36);
+    }
+    return compactText(getSourceText(source), 42) || '原文片段';
+}
+
+function buildEvidenceSection(message) {
+    const sources = getEvidenceSources(message);
+    if (sources.length === 0) {
+        return '';
+    }
+
+    const documentNames = new Set(sources.map(source => source.source || source.document || '未知文档'));
+    const chips = sources
+        .map((source, index) => `<span class="evidence-chip">[${escapeHtml(getSourceRef(source, index))}]</span>`)
+        .join('');
+    const grouped = sources.reduce((groups, source, index) => {
+        const documentName = source.source || source.document || '未知文档';
+        if (!groups.has(documentName)) {
+            groups.set(documentName, []);
+        }
+        groups.get(documentName).push({ source, index });
+        return groups;
+    }, new Map());
+
+    const documentBlocks = Array.from(grouped.entries()).map(([documentName, items]) => {
+        const cards = items.map(({ source, index }) => {
+            const ref = getSourceRef(source, index);
+            const text = getSourceText(source);
+            return `
+                <details class="evidence-card" id="${getSafeEvidenceId(message.id, ref)}" data-evidence-ref="${escapeHtml(ref)}">
+                    <summary class="evidence-card-summary">
+                        <span class="evidence-ref">[${escapeHtml(ref)}]</span>
+                        <span>${escapeHtml(getEvidenceChunkLabel(source))}</span>
+                        <span class="evidence-summary-text">${escapeHtml(getEvidenceSummary(source))}</span>
+                        <span class="evidence-card-action" aria-hidden="true"></span>
+                    </summary>
+                    <div class="evidence-full">
+                        <div class="evidence-full-label">原文片段</div>
+                        <p>${escapeHtml(text)}</p>
+                    </div>
+                </details>
+            `;
+        }).join('');
+
+        return `
+            <section class="evidence-document">
+                <h4>${escapeHtml(documentName)}</h4>
+                ${cards}
+            </section>
+        `;
+    }).join('');
+
+    return `
+        <details class="evidence-section">
+            <summary class="evidence-summary">
+                <span class="evidence-summary-title">证据来源 ${sources.length} 条｜来自 ${documentNames.size} 份文档</span>
+                <span class="evidence-summary-chips">${chips}</span>
+            </summary>
+            <div class="evidence-body">
+                ${documentBlocks}
+            </div>
+        </details>
+    `;
+}
+
+function enhanceCitationRefs(messageDiv, message) {
+    const sources = getEvidenceSources(message);
+    if (sources.length === 0) {
+        return;
+    }
+
+    const sourcesByRef = new Map(sources.map((source, index) => [getSourceRef(source, index), source]));
+    const answer = messageDiv.querySelector('.assistant-answer-text');
+    if (!answer) {
+        return;
+    }
+
+    const walker = document.createTreeWalker(answer, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            const parent = node.parentElement;
+            if (!parent || parent.closest('a, button, code, pre, .citation-ref')) {
+                return NodeFilter.FILTER_REJECT;
+            }
+            return /\[(\d+)\]/.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        }
+    });
+
+    const textNodes = [];
+    while (walker.nextNode()) {
+        textNodes.push(walker.currentNode);
+    }
+
+    textNodes.forEach(node => {
+        const fragment = document.createDocumentFragment();
+        const value = node.nodeValue;
+        let lastIndex = 0;
+        value.replace(/\[(\d+)\]/g, (match, ref, offset) => {
+            if (!sourcesByRef.has(ref)) {
+                return match;
+            }
+            fragment.appendChild(document.createTextNode(value.slice(lastIndex, offset)));
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'citation-ref';
+            button.dataset.ref = ref;
+            button.textContent = match;
+            button.addEventListener('mouseenter', () => showCitationPreview(button, sourcesByRef.get(ref)));
+            button.addEventListener('focus', () => showCitationPreview(button, sourcesByRef.get(ref)));
+            button.addEventListener('mouseleave', hideCitationPreview);
+            button.addEventListener('blur', hideCitationPreview);
+            button.addEventListener('click', () => focusEvidence(messageDiv, message.id, ref));
+            fragment.appendChild(button);
+            lastIndex = offset + match.length;
+            return match;
+        });
+        fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+        node.parentNode.replaceChild(fragment, node);
+    });
+}
+
+function getCitationPreviewElement() {
+    let preview = document.querySelector('.citation-preview');
+    if (!preview) {
+        preview = document.createElement('div');
+        preview.className = 'citation-preview';
+        preview.setAttribute('role', 'tooltip');
+        document.body.appendChild(preview);
+    }
+    return preview;
+}
+
+function showCitationPreview(button, source) {
+    if (!source) {
+        return;
+    }
+    const preview = getCitationPreviewElement();
+    const ref = button.dataset.ref;
+    const documentName = source.source || source.document || '未知文档';
+    preview.innerHTML = `
+        <div class="citation-preview-title">[${escapeHtml(ref)}] ${escapeHtml(getEvidenceChunkLabel(source))}</div>
+        <div class="citation-preview-source">${escapeHtml(documentName)}</div>
+        <p>${escapeHtml(compactText(getSourceText(source), 180))}</p>
+    `;
+
+    const rect = button.getBoundingClientRect();
+    const preferredTop = rect.top - preview.offsetHeight - 12;
+    const top = preferredTop >= 12 ? preferredTop : rect.bottom + 10;
+    const left = Math.min(window.innerWidth - preview.offsetWidth - 12, Math.max(12, rect.left));
+    preview.style.top = `${top}px`;
+    preview.style.left = `${left}px`;
+    preview.classList.add('visible');
+}
+
+function hideCitationPreview() {
+    const preview = document.querySelector('.citation-preview');
+    if (preview) {
+        preview.classList.remove('visible');
+    }
+}
+
+function focusEvidence(messageDiv, messageId, ref) {
+    hideCitationPreview();
+    const section = messageDiv.querySelector('.evidence-section');
+    if (section) {
+        section.open = true;
+    }
+
+    const card = messageDiv.querySelector(`#${getSafeEvidenceId(messageId, ref)}`);
+    if (!card) {
+        return;
+    }
+    card.open = true;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.add('is-targeted');
+    window.setTimeout(() => card.classList.remove('is-targeted'), 1600);
+}
+
+function formatAssistantInline(text) {
+    let safe = escapeHtml(text || '');
+    safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+    return safe;
+}
+
+function renderAssistantMarkdown(content) {
+    const normalized = String(content || '').replace(/\r\n?/g, '\n').trim();
+    if (!normalized) {
+        return '<p></p>';
+    }
+
+    if (
+        window.marked &&
+        typeof window.marked.parse === 'function' &&
+        window.DOMPurify &&
+        typeof window.DOMPurify.sanitize === 'function'
+    ) {
+        window.marked.setOptions({
+            gfm: true,
+            breaks: true
+        });
+
+        const rawHtml = window.marked.parse(normalized);
+        return window.DOMPurify.sanitize(rawHtml, {
+            USE_PROFILES: { html: true }
+        });
+    }
+
+    return renderAssistantStructuredText(normalized);
+}
+
+function normalizeStructuredCitations(value) {
+    const candidates = Array.isArray(value) ? value : [value];
+    const refs = [];
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined) {
+            continue;
+        }
+        const matches = String(candidate).match(/\d+/g) || [];
+        for (const raw of matches) {
+            const ref = Number(raw);
+            if (Number.isInteger(ref) && ref > 0 && !refs.includes(ref)) {
+                refs.push(ref);
+            }
+        }
+    }
+    return refs;
+}
+
+function renderAssistantStructuredText(content) {
+    const normalized = String(content || '').replace(/\r\n?/g, '\n').trim();
+    if (!normalized) {
+        return '<p></p>';
+    }
+
+    const lines = normalized.split('\n');
+    const html = [];
+    let listItems = [];
+
+    function flushList() {
+        if (!listItems.length) {
+            return;
+        }
+        html.push(`<ul>${listItems.join('')}</ul>`);
+        listItems = [];
+    }
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+            flushList();
+            continue;
+        }
+
+        const bulletMatch = line.match(/^([-*]|\d+\.)\s+(.+)$/);
+        if (bulletMatch) {
+            listItems.push(`<li>${formatAssistantInline(bulletMatch[2])}</li>`);
+            continue;
+        }
+
+        flushList();
+
+        const headingMatch = line.match(/^(#{2,6})\s+(.+)$/);
+        if (headingMatch) {
+            const level = Math.min(3, Math.max(2, headingMatch[1].length));
+            const tagName = level === 2 ? 'h2' : 'h3';
+            html.push(`<${tagName} class="message-heading message-heading-${level}">${formatAssistantInline(headingMatch[2])}</${tagName}>`);
+            continue;
+        }
+
+        if (line.startsWith('方面：') || line.startsWith('未覆盖：')) {
+            html.push(`<h3 class="message-heading message-heading-legacy">${formatAssistantInline(line)}</h3>`);
+            continue;
+        }
+
+        html.push(`<p>${formatAssistantInline(line)}</p>`);
+    }
+
+    flushList();
+    return html.join('');
 }
 
 // 加载文档列表
@@ -573,19 +969,19 @@ function showDocumentModal(doc) {
         flex-direction: column;
     `;
 
-    const createdAt = doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-';
     const content = escapeHtml(doc.content || '');
 
     modal.innerHTML = `
         <div style="padding: 14px 18px; border-bottom: 1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:10px;">
             <div>
                 <div style="font-weight: 600; font-size: 1rem;">${escapeHtml(doc.filename || '文档详情')}</div>
-                <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">分块数：${doc.chunk_count || 0} · 上传时间：${createdAt}</div>
             </div>
             <button id="doc-modal-close" style="border:0; background:transparent; font-size:1.25rem; cursor:pointer;">×</button>
         </div>
-        <div style="padding: 16px 18px; overflow:auto; white-space: pre-wrap; line-height: 1.6; font-size: 0.92rem; color:#222;">
-            ${content || '<span style="color:#999;">（无内容）</span>'}
+        <div style="padding: 18px; overflow:auto; background:#fff;">
+            <div style="white-space:pre-wrap; color:#1f2937; font-size:0.95rem; line-height:1.75;">
+                ${content || '<span style="color:#94a3b8;">（无内容）</span>'}
+            </div>
         </div>
     `;
 
@@ -659,6 +1055,7 @@ function saveSettings() {
     localStorage.setItem('ragSettings', JSON.stringify(settings));
     localStorage.setItem('apiBaseUrl', settings.apiBaseUrl);
     API_BASE_URL = normalizeBaseUrl(settings.apiBaseUrl) || API_BASE_URL;
+    updateApiBaseStatus();
 }
 
 // 加载设置
@@ -686,6 +1083,7 @@ function loadSettings() {
         elements.apiUrlInput.value = apiBaseUrl;
     }
     API_BASE_URL = apiBaseUrl || API_BASE_URL;
+    updateApiBaseStatus();
 
     if (settings.topK) {
         elements.topKInput.value = settings.topK;
