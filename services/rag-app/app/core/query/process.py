@@ -1,6 +1,7 @@
 ﻿import asyncio
 from typing import Any, Dict, List, Optional
 
+from app.core.legal_intent import classify_query_intent_fallback, normalize_legal_intent
 from app.core.query.recall_flow import (
     OPEN_QA_ROUTES,
     STRONG_SOURCE_ROUTES,
@@ -74,19 +75,26 @@ def _mark_compare_pinned_doc(runtime: Any, doc: Any, source: str, rank: int) -> 
     return out
 
 
-def _compare_pinned_docs(runtime: Any, item: Dict[str, Any], limit: int = 2) -> List[Any]:
+def _compare_pinned_docs(
+    runtime: Any,
+    item: Dict[str, Any],
+    limit: int = 2,
+    query: str = "",
+    query_intent: str = "",
+) -> List[Any]:
     try:
         source = runtime.common.normalize_filename(item.get("source") or "")
     except Exception:
         source = str(item.get("source") or "").strip()
     out: List[Any] = []
     seen = set()
-    for doc in (
+    candidates = (
         list(item.get("selected_docs") or [])
         + list(item.get("post_filter_docs") or [])
         + list(item.get("retrieve_docs") or [])
         + list(item.get("docs") or [])
-    ):
+    )
+    for doc in _prioritize_legal_intent_process_docs(runtime, query, candidates, query_intent=query_intent):
         if source and _process_doc_source(runtime, doc) != source:
             continue
         identity = _process_doc_identity(runtime, doc)
@@ -97,6 +105,120 @@ def _compare_pinned_docs(runtime: Any, item: Dict[str, Any], limit: int = 2) -> 
         if len(out) >= max(1, int(limit or 1)):
             break
     return out
+
+
+_INTENT_FEATURES: Dict[str, Dict[str, Any]] = {
+    "定义与范围": {
+        "heading": ("适用范围", "定义", "范围", "总则"),
+        "body": ("适用本条例", "适用于", "本条例适用", "不适用", "不包括", "除外", "另有规定", "包括", "所称"),
+    },
+    "职责与权限": {
+        "heading": ("职责", "权限", "职权", "机构职责", "监督管理"),
+        "body": ("负责", "主管", "职责", "职权", "权限", "监督管理", "协助", "会同", "分工"),
+    },
+    "程序与条件": {
+        "heading": ("程序", "条件", "办理", "登记", "审查", "申请"),
+        "body": ("程序", "流程", "申请", "审查", "办理", "登记", "期限", "条件", "材料", "提交", "发放", "不予"),
+    },
+    "法律责任": {
+        "heading": ("法律责任", "罚则"),
+        "body": ("法律责任", "罚则", "处罚", "罚款", "没收", "责令", "吊销", "违法", "逾期", "警告"),
+    },
+    "权利义务": {
+        "heading": ("权利", "义务", "行为规范"),
+        "body": ("权利", "义务", "应当", "不得", "禁止", "可以", "鼓励", "要求"),
+    },
+}
+
+
+def _process_query_intent(query: str, query_intent: str = "") -> str:
+    return normalize_legal_intent(query_intent) or normalize_legal_intent(classify_query_intent_fallback(query))
+
+
+def _process_doc_text(runtime: Any, doc: Any) -> str:
+    try:
+        return str(runtime.evidence.hit_display_text(doc) or "")
+    except Exception:
+        entity = doc.get("entity") if isinstance(doc, dict) else {}
+        return str((entity or {}).get("text") or doc.get("text") or "")
+
+
+def _process_doc_legal_intent(heading: str, body: str, article_no: str = "") -> str:
+    haystack = f"{heading}\n{body}"
+    scores: Dict[str, int] = {}
+    for intent, features in _INTENT_FEATURES.items():
+        score = 0
+        score += sum(3 for term in features.get("heading", ()) if term and term in heading)
+        score += sum(2 for term in features.get("body", ()) if term and term in haystack)
+        if intent == "定义与范围" and article_no in {"第二条", "第2条"}:
+            score += 1
+        if score:
+            scores[intent] = score
+    if not scores:
+        return "其他"
+    return max(scores.items(), key=lambda item: item[1])[0]
+
+
+def _legal_intent_process_doc_priority(runtime: Any, query: str, doc: Any, query_intent: str = "") -> int:
+    intent = _process_query_intent(query, query_intent)
+    if not intent or intent == "其他":
+        return 0
+    try:
+        metadata = runtime.evidence.hit_metadata(doc) or {}
+    except Exception:
+        metadata = {}
+    clause_meta = metadata.get("clause_metadata") if isinstance(metadata.get("clause_metadata"), dict) else {}
+    article_no = str(
+        metadata.get("article_no")
+        or metadata.get("article_id")
+        or metadata.get("clause_id")
+        or clause_meta.get("article_no")
+        or ""
+    )
+    heading = " ".join(
+        str(value or "")
+        for value in (
+            metadata.get("heading"),
+            metadata.get("section"),
+            metadata.get("section_title"),
+            clause_meta.get("section_title"),
+        )
+    )
+    body = _process_doc_text(runtime, doc)
+    features = _INTENT_FEATURES.get(intent) or {}
+    if not features:
+        return 0
+    score = 0
+    score += sum(4 for term in features.get("heading", ()) if term and term in heading)
+    score += sum(3 for term in features.get("body", ()) if term and term in body)
+    if _process_doc_legal_intent(heading, body, article_no) == intent:
+        score += 6
+    if intent == "定义与范围":
+        if article_no in {"第二条", "第2条"}:
+            score += 2
+        if "为了" in body[:120] and "制定本条例" in body[:180]:
+            score -= 5
+        if "原则" in body and score <= 3:
+            score -= 2
+    return score
+
+
+def _prioritize_legal_intent_process_docs(
+    runtime: Any,
+    query: str,
+    docs: List[Any],
+    query_intent: str = "",
+) -> List[Any]:
+    if not docs or not _process_query_intent(query, query_intent):
+        return list(docs or [])
+    scored = [
+        (_legal_intent_process_doc_priority(runtime, query, doc, query_intent=query_intent), index, doc)
+        for index, doc in enumerate(docs)
+    ]
+    if max((score for score, _, _ in scored), default=0) <= 0:
+        return list(docs)
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    return [doc for _, _, doc in scored]
 
 
 def _recall_pinned_docs(runtime: Any, recall: Dict[str, Any], limit: int = 3) -> List[Any]:
@@ -833,14 +955,24 @@ async def prepare_process_evidence_context(
 
     if recall.get("compare_source_results"):
         min_required_per_doc = _compare_process_min_required(recall)
+        query_intent = str((recall.get("qfilters") or {}).get("_legal_intent") or "")
         for item in recall.get("compare_source_results") or []:
-            pinned_docs = _compare_pinned_docs(runtime, item, limit=max(2, min_required_per_doc))
-            group_candidates = (
+            pinned_docs = _compare_pinned_docs(
+                runtime,
+                item,
+                limit=max(2, min_required_per_doc),
+                query=query,
+                query_intent=query_intent,
+            )
+            group_candidates = _prioritize_legal_intent_process_docs(
+                runtime,
+                query,
                 list(pinned_docs)
                 + list(item.get("post_filter_docs") or [])
                 + list(item.get("selected_docs") or [])
                 + list(item.get("retrieve_docs") or [])
-                + list(item.get("docs") or [])
+                + list(item.get("docs") or []),
+                query_intent=query_intent,
             )
             group_docs = runtime.evidence.select_process_docs(
                 query,

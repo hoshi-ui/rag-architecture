@@ -923,6 +923,116 @@ def test_multi_doc_compare_process_keeps_pinned_selected_clause_before_rerank_ch
     assert result["process_docs"][0]["entity"]["metadata"]["is_pinned"] is True
 
 
+def test_multi_doc_compare_process_prioritizes_scope_clause_in_pins():
+    class Evidence(_EvidenceForResponses):
+        @staticmethod
+        def select_process_docs(query, docs, score_mode, qfilters, final_n, intent_classification):
+            return list(docs or [])[:final_n]
+
+        @staticmethod
+        def expand_docs_with_full_article_chunks(docs):
+            return list(docs or [])
+
+        async def compare_observations_async(self, query, groups, qfilters=None):
+            return {
+                "compare_status": "compare_ready",
+                "answer_scope": "full",
+                "evidence_coverage_reason": "sufficient_evidence",
+            }
+
+    class Runtime(_ResponseRuntime):
+        evidence = Evidence()
+
+    purpose = _hit("A.pdf", 0.9, "第一条 为了加强管理，制定本条例。")
+    purpose["entity"]["metadata"]["article_no"] = "第一条"
+    scope = _hit("A.pdf", 0.8, "第二条 本条例适用于本行政区域内相关管理活动；不包括其他事项。")
+    scope["entity"]["metadata"]["article_no"] = "第二条"
+    recall = {
+        "query_route": "multi_doc_compare",
+        "target_sources": ["A.pdf"],
+        "compare_source_results": [
+            {
+                "source": "A.pdf",
+                "selected_docs": [purpose, scope],
+                "post_filter_docs": [purpose, scope],
+                "retrieve_docs": [purpose, scope],
+                "docs": [purpose, scope],
+                "score_mode": "score",
+            }
+        ],
+        "selected_docs": [purpose, scope],
+        "score_mode": "score",
+        "qfilters": {},
+        "final_n": 1,
+        "intent_classification": {},
+        "compare_coverage": {
+            "min_required_per_doc": 1,
+            "target_docs": [{"doc_id": "A.pdf", "source": "A.pdf", "retrieved": 2, "selected": 2, "coverage": "covered"}],
+        },
+    }
+
+    import asyncio
+
+    result = asyncio.run(prepare_process_evidence_context(Runtime(), "比较 A 的适用范围和排除说明", recall, []))
+
+    assert result["process_docs"][0]["entity"]["metadata"]["article_no"] == "第二条"
+
+
+def test_multi_doc_compare_process_prioritizes_legal_responsibility_clause_in_pins():
+    class Evidence(_EvidenceForResponses):
+        @staticmethod
+        def select_process_docs(query, docs, score_mode, qfilters, final_n, intent_classification):
+            return list(docs or [])[:final_n]
+
+        @staticmethod
+        def expand_docs_with_full_article_chunks(docs):
+            return list(docs or [])
+
+        async def compare_observations_async(self, query, groups, qfilters=None):
+            return {
+                "compare_status": "compare_ready",
+                "answer_scope": "full",
+                "evidence_coverage_reason": "sufficient_evidence",
+            }
+
+    class Runtime(_ResponseRuntime):
+        evidence = Evidence()
+
+    generic = _hit("A.pdf", 0.9, "第五条 有关部门负责日常监督管理。")
+    generic["entity"]["metadata"]["article_no"] = "第五条"
+    penalty = _hit("A.pdf", 0.8, "第三十八条 违反规定的，责令改正，并处二百元以上一千元以下罚款。")
+    penalty["entity"]["metadata"]["article_no"] = "第三十八条"
+    recall = {
+        "query_route": "multi_doc_compare",
+        "target_sources": ["A.pdf"],
+        "compare_source_results": [
+            {
+                "source": "A.pdf",
+                "selected_docs": [generic, penalty],
+                "post_filter_docs": [generic, penalty],
+                "retrieve_docs": [generic, penalty],
+                "docs": [generic, penalty],
+                "score_mode": "score",
+            }
+        ],
+        "selected_docs": [generic, penalty],
+        "score_mode": "score",
+        "qfilters": {"_legal_intent": "法律责任"},
+        "final_n": 1,
+        "intent_classification": {},
+        "compare_coverage": {
+            "min_required_per_doc": 1,
+            "target_docs": [{"doc_id": "A.pdf", "source": "A.pdf", "retrieved": 2, "selected": 2, "coverage": "covered"}],
+        },
+    }
+
+    import asyncio
+
+    result = asyncio.run(prepare_process_evidence_context(Runtime(), "比较 A 的处罚方式和罚款幅度", recall, []))
+
+    assert result["process_docs"][0]["entity"]["metadata"]["article_no"] == "第三十八条"
+
+
 def test_not_found_source_state_renders_document_not_found_on_retrieve_and_process_paths():
     recall = {
         "source_lock_required": True,
