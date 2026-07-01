@@ -1,6 +1,5 @@
 ﻿import json
 import logging
-import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -375,6 +374,57 @@ def _pinned_sources(runtime: Any, qfilters: Dict[str, Any], active_fnames: Optio
     return out
 
 
+def _runtime_config_value(runtime: Any, name: str, default: Any) -> Any:
+    getter = getattr(runtime, "config_value", None)
+    if callable(getter):
+        try:
+            return getter(name, default)
+        except Exception:
+            pass
+    config = getattr(runtime, "config", None)
+    if config is not None and hasattr(config, name):
+        try:
+            return getattr(config, name)
+        except Exception:
+            pass
+    return default
+
+
+def _dynamic_elbow_limit(runtime: Any, docs: List[Any], base_limit: int) -> int:
+    if base_limit <= 0 or len(docs or []) <= base_limit:
+        return max(0, min(len(docs or []), base_limit))
+    enabled = bool(_runtime_config_value(runtime, "ENABLE_DYNAMIC_ELBOW_TRUNCATION", True))
+    if not enabled:
+        return max(0, min(len(docs), base_limit))
+    try:
+        delta_threshold = max(0.0, float(_runtime_config_value(runtime, "DYNAMIC_ELBOW_SCORE_DELTA", 0.025) or 0.0))
+    except Exception:
+        delta_threshold = 0.025
+    try:
+        max_extra = max(0, int(_runtime_config_value(runtime, "DYNAMIC_ELBOW_MAX_EXTRA", 5) or 0))
+    except Exception:
+        max_extra = 5
+    try:
+        configured_max = int(_runtime_config_value(runtime, "FINAL_CONTEXT_N_MAX", 0) or 0)
+    except Exception:
+        configured_max = 0
+    hard_limit = min(len(docs), base_limit + max_extra)
+    if configured_max > 0:
+        hard_limit = min(hard_limit, max(configured_max, base_limit))
+    if hard_limit <= base_limit:
+        return base_limit
+
+    scores = [_trace_hit_score(runtime, doc) for doc in docs]
+    limit = base_limit
+    for idx in range(base_limit, hard_limit):
+        previous = scores[idx - 1]
+        current = scores[idx]
+        if abs(previous - current) > delta_threshold:
+            break
+        limit = idx + 1
+    return max(base_limit, min(limit, hard_limit))
+
+
 def _select_with_pinned_clauses(
     runtime: Any,
     docs: List[Any],
@@ -384,9 +434,11 @@ def _select_with_pinned_clauses(
     pinned_source_docs: Optional[List[Any]] = None,
     pinned_sources: Optional[List[str]] = None,
 ) -> List[Any]:
-    limit = min(len(docs), max(0, int(final_n)))
+    base_limit = min(len(docs), max(0, int(final_n)))
+    limit = _dynamic_elbow_limit(runtime, list(docs or []), base_limit)
     if pinned_source_docs:
-        limit = min(len(docs or []) + len(pinned_source_docs or []), max(0, int(final_n)))
+        pinned_capacity_limit = min(len(docs or []) + len(pinned_source_docs or []), max(0, int(final_n)))
+        limit = max(limit, pinned_capacity_limit)
     if limit <= 0:
         return []
     pinned_ids = _pinned_clause_ids(qfilters, query)
@@ -520,13 +572,13 @@ def _metadata_aware_rerank_text(runtime: Any, hit: Any, query_intent: str = "") 
     return "\n".join(str(part) for part in prefix if str(part or "").strip())
 
 
-def _article_match_reward(query: str, article_no: str) -> float:
+def _article_match_reward(runtime: Any, query: str, article_no: str) -> float:
     if not article_no:
         return 0.0
     mentioned = set(target_article_ids({}, query) or [])
     if not mentioned:
         return 0.0
-    return 0.2 if article_no in mentioned else 0.0
+    return float(runtime.config_value("RERANK_ARTICLE_MATCH_REWARD", 0.2)) if article_no in mentioned else 0.0
 
 
 def _version_freshness_rewards(runtime: Any, hits: List[Any]) -> Dict[str, float]:
@@ -609,7 +661,7 @@ async def chunk_level_rerank(
         source = _hit_source(runtime, base_hit)
         adjusted_score = (
             float(score)
-            + _article_match_reward(query, _hit_article_no(runtime, base_hit))
+            + _article_match_reward(runtime, query, _hit_article_no(runtime, base_hit))
             + float(freshness_rewards.get(source, 0.0))
         )
         reranked_hits.append({"entity": ent, "score": adjusted_score})
@@ -659,7 +711,7 @@ async def source_level_rerank(
     except Exception:
         return {"scores": src_scores, "used": False}
     merged = dict(src_scores)
-    weight = float(os.getenv("FUSION_W_RERANK_DOC", "0.3"))
+    weight = float(runtime.config_value("FUSION_W_RERANK_DOC", 0.3))
     for item in reranked or []:
         idx = item.get("index") if isinstance(item, dict) else getattr(item, "index", None)
         score = item.get("score", 0.0) if isinstance(item, dict) else getattr(item, "score", 0.0)
@@ -781,65 +833,58 @@ def fuse_dense_lexical_hits(
 
     weak_query = runtime.is_weak_reference_query(query)
     source_signals = runtime.build_source_signal_map(query, lexical_hits or [], doc_recall_plan or [])
-    fname_set = fname_set or set()
-    allowed_set = allowed_set or set()
+    source_count = _source_count_map(runtime, docs_all)
     dense_source_scores = dense_source_scores or {}
-    source_count = _source_count_map(runtime, docs_all)
-    pre_prune_source_scores = summarize_source_scores(
-        runtime,
-        docs_all,
-        dense_rank_map,
-        lex_rank_map,
-        source_count,
-        source_signals,
-        fname_set,
-        allowed_set,
-        weak_query,
-        query,
-    )
-    prune_result = prune_hybrid_sources(runtime, docs_all, pre_prune_source_scores, fname_set, allowed_set)
-    docs_all = prune_result["docs"]
-    source_count = _source_count_map(runtime, docs_all)
-    combined = [(0.0, i) for i in range(len(docs_all))]
-    fused_source_scores: Dict[str, float] = {}
-
-    for i, hit in enumerate(docs_all):
-        src = runtime.normalize_filename_for_match(runtime.hit_entity_source(hit) or "")
-        if src not in fused_source_scores:
-            fused_source_scores[src] = runtime.fusion_source_score(
-                src,
-                query,
-                dense_rank_map,
-                lex_rank_map,
-                source_count,
-                source_signals,
-                fname_set,
-                allowed_set,
-                weak_query,
-            )
-        combined[i] = (fused_source_scores[src], i)
-    combined.sort(
-        key=lambda item: (
-            item[0],
-            runtime.source_dense_tiebreak_score(
-                runtime.normalize_filename_for_match(runtime.hit_entity_source(docs_all[item[1]]) or ""),
-                dense_source_scores,
-            ),
-        ),
-        reverse=True,
-    )
-
+    fused_source_scores: Dict[str, float] = {
+        source: float(score or 0.0)
+        for source, score in dense_source_scores.items()
+    }
     seen_keys = set()
-    docs_fused = []
-    for fused_score, idx in combined:
-        hit = docs_all[idx]
-        key = (runtime.hit_entity_source(hit) or "unknown", (runtime.hit_entity_text(hit) or "")[:64])
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        docs_fused.append(runtime.clone_hit_with_score(hit, fused_score))
-        if len(docs_fused) >= recall_k:
+    docs_fused: List[Any] = []
+    dense_list = list(dense_hits or [])
+    lexical_list = list(lexical_hits or [])
+    max_len = max(len(dense_list), len(lexical_list))
+    for index in range(max_len):
+        candidates: List[Any] = []
+        if index < len(dense_list):
+            candidates.append(dense_list[index])
+        if index < len(lexical_list):
+            candidates.append(lexical_list[index])
+        for hit in candidates:
+            src = runtime.normalize_filename_for_match(runtime.hit_entity_source(hit) or "")
+            text = runtime.hit_entity_text(hit) or ""
+            key = (src or "unknown", text[:96])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            docs_fused.append(hit)
+            if src and src not in fused_source_scores:
+                fused_source_scores[src] = float(len(docs_fused))
+            if len(docs_fused) >= max(1, int(recall_k or 1)):
+                break
+        if len(docs_fused) >= max(1, int(recall_k or 1)):
             break
+
+    if not docs_fused and docs_all:
+        for hit in docs_all:
+            src = runtime.normalize_filename_for_match(runtime.hit_entity_source(hit) or "")
+            text = runtime.hit_entity_text(hit) or ""
+            key = (src or "unknown", text[:96])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            docs_fused.append(hit)
+            if len(docs_fused) >= max(1, int(recall_k or 1)):
+                break
+
+    source_count = _source_count_map(runtime, docs_fused)
+    prune_result = {
+        "docs": docs_fused,
+        "kept_sources": set(source_count),
+        "pruned_sources": set(),
+        "enabled": False,
+        "strategy": "union_only",
+    }
 
     return {
         "docs": docs_fused,

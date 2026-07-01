@@ -241,9 +241,9 @@ class RetrievalBaseMixin:
             section = self.runtime.common.normalize_query((chunk or {}).get("section") or "")
             score = float(len(matched))
             if any(term in section for term in ("法律责任", "罚则", "处罚")):
-                score += 3.0
+                score += float(getattr(self.runtime.config, "HEADING_RESCUE_LEGAL_SECTION_BONUS", 3.0))
             if any(term in text for term in ("处罚", "罚款", "责令", "没收", "法律责任")):
-                score += 1.5
+                score += float(getattr(self.runtime.config, "HEADING_RESCUE_LEGAL_BODY_BONUS", 1.5))
             hit["score"] = score
             ranked.append((score, -idx, hit))
         ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)

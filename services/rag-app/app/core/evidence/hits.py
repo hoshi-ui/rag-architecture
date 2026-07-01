@@ -385,17 +385,17 @@ def aspect_doc_priority_score(runtime: Any, doc: Any, aspect: str, rank_index: i
     section_exact = float(features.get("section_exact") or 0.0)
     body_exact = float(features.get("body_exact") or 0.0)
     inherited_exact = float(features.get("inherited_exact") or 0.0)
-    generic_penalty = 0.45 if is_generic_section_title(adapter.doc_section_name(doc)) else 0.0
-    rank_bonus = max(0.0, 0.25 - (0.01 * max(0, rank_index - 1)))
-    clause_bonus = 0.35 if has_clause_like_body_evidence(doc, adapter.hit_metadata, adapter.hit_display_text) else 0.0
-    substantive_bonus = 0.25 if is_substantive_short_legal_evidence(doc, adapter.hit_metadata, adapter.hit_display_text) else 0.0
+    generic_penalty = adapter.aspect_generic_section_penalty if is_generic_section_title(adapter.doc_section_name(doc)) else 0.0
+    rank_bonus = max(0.0, adapter.aspect_rank_bonus_base - (adapter.aspect_rank_bonus_decay * max(0, rank_index - 1)))
+    clause_bonus = adapter.aspect_clause_bonus if has_clause_like_body_evidence(doc, adapter.hit_metadata, adapter.hit_display_text) else 0.0
+    substantive_bonus = adapter.aspect_substantive_bonus if is_substantive_short_legal_evidence(doc, adapter.hit_metadata, adapter.hit_display_text) else 0.0
     return (
-        (1.45 * body_hits)
-        + (1.2 * inherited_hits)
-        + (0.95 * body_exact)
-        + (0.75 * inherited_exact)
-        + (0.5 * section_hits)
-        + (0.25 * section_exact)
+        (adapter.aspect_body_hit_weight * body_hits)
+        + (adapter.aspect_inherited_hit_weight * inherited_hits)
+        + (adapter.aspect_body_exact_weight * body_exact)
+        + (adapter.aspect_inherited_exact_weight * inherited_exact)
+        + (adapter.aspect_section_hit_weight * section_hits)
+        + (adapter.aspect_section_exact_weight * section_exact)
         + clause_bonus
         + substantive_bonus
         + rank_bonus

@@ -3,6 +3,7 @@
 from app.core import evidence as evidence_core
 from app.core import intent_classifier
 from app.core.legal_intent import classify_query_intent_fallback, legal_intent_from_payload, normalize_legal_intent
+from app.core.query import rewrite as query_rewrite_core
 
 
 def _compare_source_status_prompt_lines(source_statuses: List[Dict[str, Any]]) -> str:
@@ -317,6 +318,92 @@ def source_resolution_state_fields(source_resolution: Dict[str, Any], active_fna
     }
 
 
+def _low_confidence_source_lock_hint_sources(
+    runtime: Any,
+    source_resolution: Dict[str, Any],
+    active_fnames: Optional[List[str]] = None,
+) -> List[str]:
+    if not bool(getattr(runtime.config, "ENABLE_SOURCE_LOCK_SOFT_DEGRADATION", True)):
+        return []
+    if source_resolution_status(source_resolution) != "locked":
+        return []
+    if str((source_resolution or {}).get("lock_mode") or "").strip() == "hard_lock":
+        return []
+    if str((source_resolution or {}).get("route") or "") == "multi_doc_compare":
+        return []
+    if str((source_resolution or {}).get("source_lock_kind") or "") in {"compare_lock", "agentic_compare_lock"}:
+        return []
+
+    targets = source_resolution_target_fnames(source_resolution) or list(active_fnames or [])
+    targets = [
+        runtime.common.normalize_filename(source or "")
+        for source in targets
+        if runtime.common.normalize_filename(source or "")
+    ]
+    targets = list(dict.fromkeys(targets))
+    if not targets:
+        return []
+
+    try:
+        confidence = float((source_resolution or {}).get("lock_confidence") or 0.0)
+    except Exception:
+        confidence = 0.0
+    threshold = float(getattr(runtime.config, "SOURCE_LOCK_SOFT_DEGRADE_MIN_CONFIDENCE", 0.90))
+    return targets if confidence < threshold else []
+
+
+def _soft_degrade_source_lock(
+    runtime: Any,
+    source_resolution: Dict[str, Any],
+    active_fnames: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    hint_sources = _low_confidence_source_lock_hint_sources(runtime, source_resolution, active_fnames)
+    if not hint_sources:
+        return dict(source_resolution or {})
+    trace = dict((source_resolution or {}).get("source_resolution_trace") or {})
+    try:
+        original_confidence = float((source_resolution or {}).get("lock_confidence") or 0.0)
+    except Exception:
+        original_confidence = 0.0
+    candidates = [
+        runtime.common.normalize_filename(source or "")
+        for source in list((source_resolution or {}).get("candidates") or []) + hint_sources
+        if runtime.common.normalize_filename(source or "")
+    ]
+    candidates = list(dict.fromkeys(candidates))
+    return {
+        **dict(source_resolution or {}),
+        "required": False,
+        "resolved": False,
+        "status": "global_fallback",
+        "scope_mode": "global",
+        "fallback_allowed": True,
+        "forced_retrieval_allowed": True,
+        "sources": [],
+        "target_sources": [],
+        "target_fnames": [],
+        "target_doc_ids": [],
+        "candidates": candidates,
+        "soft_degraded_sources": hint_sources,
+        "soft_source_scope": True,
+        "reason": "soft_degraded_source_lock",
+        "lock_mode": "none",
+        "lock_confidence": 0.0,
+        "lock_message_prefix": "",
+        "source_lock_kind": "soft_degraded_source_lock",
+        "source_resolution_trace": {
+            **trace,
+            "soft_degraded_source_lock": True,
+            "soft_degraded_sources": hint_sources,
+            "original_status": trace.get("original_status") or source_resolution_status(source_resolution),
+            "original_reason": trace.get("original_reason") or (source_resolution or {}).get("reason") or "",
+            "original_lock_mode": (source_resolution or {}).get("lock_mode") or "",
+            "original_lock_confidence": original_confidence,
+            "original_source_lock_kind": (source_resolution or {}).get("source_lock_kind") or "",
+        },
+    }
+
+
 def _empty_recall_result(
     runtime: Any,
     query: str,
@@ -484,6 +571,22 @@ def _compare_doc_groups(compare_source_results: List[Dict[str, Any]], field: str
     ]
 
 
+def _compare_doc_groups_with_rerank_pins(compare_source_results: List[Dict[str, Any]], field: str) -> List[Dict[str, Any]]:
+    groups: List[Dict[str, Any]] = []
+    for item in compare_source_results or []:
+        docs: List[Any] = []
+        docs.extend(list(item.get("docs") or []))
+        docs.extend(list(item.get(field) or []))
+        groups.append(
+            {
+                "source": item.get("source") or "",
+                "docs": docs,
+                "score_mode": item.get("score_mode") or "score",
+            }
+        )
+    return groups
+
+
 def build_compare_coverage_trace(
     compare_sources: List[str],
     compare_source_results: List[Dict[str, Any]],
@@ -568,9 +671,9 @@ def build_multi_doc_compare_result(
         missing_targets=list(source_resolution.get("compare_missing_targets") or compare_source_set.get("missing_targets") or []),
     )
     docs_groups = _compare_doc_groups(compare_source_results, "docs")
-    selected_groups = _compare_doc_groups(compare_source_results, "selected_docs")
+    selected_groups = _compare_doc_groups_with_rerank_pins(compare_source_results, "selected_docs")
     post_filter_groups = _compare_doc_groups(compare_source_results, "post_filter_docs")
-    retrieve_groups = _compare_doc_groups(compare_source_results, "retrieve_docs")
+    retrieve_groups = _compare_doc_groups_with_rerank_pins(compare_source_results, "retrieve_docs")
     compare_stage_trace = [
         {
             "source": item.get("source") or "",
@@ -731,96 +834,6 @@ def build_empty_search_result(
         ),
     }
 
-def build_dynamic_lock_clarification_result(
-    runtime: Any,
-    query: str,
-    retrieval_query: str,
-    retrieval_query_raw: str,
-    dense_query: str,
-    qtype: str,
-    qfilters: Dict[str, Any],
-    llm_parse: Dict[str, Any],
-    intent_classification: Dict[str, Any],
-    is_comparison: bool,
-    docs: List[Any],
-    visible_dense: Dict[str, Any],
-    visible_lex: Dict[str, Any],
-    selected_docs: List[Any],
-    post_filter_docs: List[Any],
-    retrieve_docs: List[Any],
-    dense_source_scores: Dict[str, float],
-    score_mode: str,
-    reranked_chunk: Dict[str, Any],
-    recall_k: int,
-    final_n: int,
-    weak_query: bool,
-    dynamic_lock: Dict[str, Any],
-    source_resolution: Dict[str, Any],
-    compare_plan: Dict[str, Any],
-    intent_tier: str,
-) -> Dict[str, Any]:
-    dropped = int(visible_dense.get("dropped") or 0) + int(visible_lex.get("dropped") or 0)
-    stage_trace = dict((reranked_chunk or {}).get("stage_trace") or {})
-    return {
-        "query": query,
-        "retrieval_query": retrieval_query,
-        "retrieval_query_raw": retrieval_query_raw,
-        "dense_query": dense_query,
-        "llm_parse": llm_parse,
-        "intent_classification": intent_classification,
-        "is_comparison": bool(is_comparison),
-        "evidence_query": retrieval_query,
-        "question_type": qtype,
-        "score_mode": score_mode,
-        "docs": docs,
-        "dense_hits": visible_dense["hits"],
-        "lexical_hits": visible_lex["hits"],
-        "selected_docs": selected_docs,
-        "qfilters": qfilters,
-        "recall_k": recall_k,
-        "final_n": final_n,
-        "rerank_used": bool(reranked_chunk["used"]),
-        "query_route": "open_topic_probe",
-        "weak_query": weak_query,
-        "early_filtered": dropped,
-        "visibility_filtered": dropped,
-        "dense_source_scores": dense_source_scores,
-        "dense_visible_states": dict(visible_dense.get("states") or {}),
-        "lexical_visible_states": dict(visible_lex.get("states") or {}),
-        "post_filter_docs": post_filter_docs,
-        "retrieve_docs": retrieve_docs,
-        "source_lock_required": False,
-        "resolved_source_lock": False,
-        "target_sources": [],
-        "source_lock_candidates": list(dynamic_lock.get("sources") or []),
-        "source_lock_reason": "open_topic_multi_source",
-        "clarification": runtime.source.clarification_prompt(list(dynamic_lock.get("sources") or [])),
-        "target_text": "",
-        "lock_mode": "none",
-        "lock_confidence": 0.0,
-        "lock_message_prefix": "",
-        "source_lock_kind": "open_topic_multi_source",
-        "source_resolution_trace": {
-            "post_recall_dynamic_lock": dynamic_lock,
-            **({"retrieval_stage_trace": stage_trace} if stage_trace else {}),
-        },
-        "inherited_from_context": False,
-        "compare_subjects": list(source_resolution.get("compare_subjects") or []),
-        "compare_doc_like_subjects": list(source_resolution.get("compare_doc_like_subjects") or []),
-        "compare_missing_targets": list(source_resolution.get("compare_missing_targets") or []),
-        "compare_common_aspects": list(source_resolution.get("compare_common_aspects") or []),
-        "compare_topic_pair": list(source_resolution.get("compare_topic_pair") or []),
-        "compare_canonical_aspects": list(source_resolution.get("compare_canonical_aspects") or []),
-        "compare_expanded_aspects": list(source_resolution.get("compare_expanded_aspects") or []),
-        "compare_source_subqueries": dict(source_resolution.get("compare_source_subqueries") or compare_plan.get("source_subqueries") or {}),
-        "compare_status": source_resolution.get("compare_status") or compare_plan.get("compare_status") or "not_compare",
-        "compare_plan": compare_plan,
-        "compare_source_results": [],
-        "intent_tier": intent_tier,
-        "soft_clarification_required": True,
-        "soft_clarification_reason": "open_topic_multi_source",
-    }
-
 def build_lightweight_recall_result(
     runtime: Any,
     query: str,
@@ -932,45 +945,6 @@ def build_lightweight_recall_result(
         "soft_clarification_required": bool(fallback_low_score),
         "soft_clarification_reason": "global_fallback_low_similarity" if fallback_low_score else "",
     }
-
-def apply_post_recall_dynamic_lock(
-    source_resolution: Dict[str, Any],
-    active_fnames: List[str],
-    dynamic_lock: Dict[str, Any],
-) -> Dict[str, Any]:
-    if dynamic_lock.get("action") != "lock":
-        return {
-            "source_resolution": source_resolution,
-            "active_fnames": active_fnames,
-        }
-
-    locked_source = str(dynamic_lock.get("source") or "")
-    if not locked_source:
-        return {
-            "source_resolution": source_resolution,
-            "active_fnames": active_fnames,
-        }
-
-    return {
-        "active_fnames": [locked_source],
-        "source_resolution": {
-            **dict(source_resolution),
-            "required": False,
-            "resolved": True,
-            "status": "locked",
-            "sources": [locked_source],
-            "target_fnames": [locked_source],
-            "candidates": [locked_source],
-            "reason": "post_recall_dominant_source",
-            "lock_mode": "implicit_lock",
-            "lock_confidence": float(dynamic_lock.get("share") or 0.0),
-            "confidence": float(dynamic_lock.get("share") or 0.0),
-            "evidence": [f"source:{locked_source}", "reason:post_recall_dominant_source"],
-            "source_lock_kind": "post_recall_dominant_source",
-        },
-    }
-
-
 
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple
@@ -1213,7 +1187,7 @@ def handle_required_source_lock(
         }
 
     resolution_status = source_resolution_status(source_resolution)
-    if resolution_status in {"ambiguous", "not_found"}:
+    if resolution_status in {"ambiguous", "not_found"} and (source_resolution.get("reason") or "") != "document_ambiguous":
         source_resolution = {
             **dict(source_resolution),
             "resolved": False,
@@ -1232,15 +1206,32 @@ def handle_required_source_lock(
         fnames = []
         active_fnames = []
     elif (source_resolution.get("reason") or "") == "document_ambiguous":
+        trace = dict(source_resolution.get("source_resolution_trace") or {})
         candidates = [
             runtime.common.normalize_filename(x or "")
-            for x in (source_resolution.get("candidates") or [])
+            for x in (
+                source_resolution.get("candidates")
+                or trace.get("prepared_candidates")
+                or trace.get("raw_candidates")
+                or []
+            )
             if runtime.common.normalize_filename(x or "")
         ]
         candidates = list(dict.fromkeys(candidates))
         canonical_candidates = runtime.source.collapse_by_canonical(candidates, limit=max(1, len(candidates)))
         allow_ambiguous_soft_lock = bool(canonical_candidates) and len(canonical_candidates) == 1
         chosen = canonical_candidates[0] if allow_ambiguous_soft_lock else ""
+        if not chosen and candidates:
+            normalized_query = runtime.common.normalize_query(query)
+            exact_title_matches = []
+            for candidate in candidates:
+                title = runtime.common.normalize_query(runtime.source.display_title(candidate) or candidate)
+                if title and title in normalized_query:
+                    exact_title_matches.append(candidate)
+            exact_title_matches = list(dict.fromkeys(exact_title_matches))
+            if len(exact_title_matches) == 1:
+                chosen = exact_title_matches[0]
+                allow_ambiguous_soft_lock = True
         if chosen:
             title = runtime.source.display_title(chosen) or chosen
             if len(candidates) <= 1:
@@ -1251,13 +1242,18 @@ def handle_required_source_lock(
                 query,
                 chosen,
                 candidates,
-                raw_title_score=6.2 if len(candidates) <= 1 else 5.6,
+                raw_title_score=(
+                    float(getattr(runtime.config, "AMBIGUOUS_SOFT_LOCK_SINGLE_RAW_TITLE_SCORE", 6.2))
+                    if len(candidates) <= 1
+                    else float(getattr(runtime.config, "AMBIGUOUS_SOFT_LOCK_MULTI_RAW_TITLE_SCORE", 5.6))
+                ),
                 top_competitors=[],
             )
             source_resolution = {
                 **dict(source_resolution),
                 "resolved": True,
                 "sources": [chosen],
+                "target_fnames": [chosen],
                 "reason": "document_ambiguous_soft_lock",
                 "lock_mode": "soft_lock",
                 "lock_confidence": ambiguous_confidence,
@@ -1267,6 +1263,7 @@ def handle_required_source_lock(
                     **dict(source_resolution.get("source_resolution_trace") or {}),
                     "original_reason": "document_ambiguous",
                     "ambiguous_soft_lock": True,
+                    "ambiguous_soft_lock_strategy": "canonical_or_exact_title",
                     "ambiguous_candidates": candidates[:5],
                     "chosen_source": chosen,
                     **ambiguous_trace,
@@ -1468,9 +1465,29 @@ async def prepare_retrieval_query_context(
 ) -> Dict[str, Any]:
     retrieval_query = query
     qfilters = runtime.routing.query_filters(query)
+    soft_degraded_sources = _low_confidence_source_lock_hint_sources(runtime, source_resolution, active_fnames)
+    if soft_degraded_sources:
+        source_resolution = _soft_degrade_source_lock(runtime, source_resolution, active_fnames)
+        qfilters["_candidate_hint_sources"] = list(
+            dict.fromkeys(list(qfilters.get("_candidate_hint_sources") or []) + soft_degraded_sources)
+        )[:5]
+        qfilters["_soft_source_scope"] = True
+        qfilters["_soft_degraded_source_lock"] = True
+        fnames = []
+        active_fnames = []
+        topical_multi_doc_mode = False
+        if query_route in {"document_clarification", "compare_clarification"}:
+            query_route = "content_qa"
     retrieval_query_override = runtime.common.normalize_query(source_resolution.get("retrieval_query_override") or "")
     if retrieval_query_override:
         retrieval_query = retrieval_query_override
+    elif soft_degraded_sources:
+        stripped_query = runtime.retrieval.strip_filename_mentions(query, soft_degraded_sources)
+        if stripped_query:
+            retrieval_query = stripped_query
+        stripped_query = runtime.retrieval.strip_source_title_mentions(retrieval_query, soft_degraded_sources)
+        if stripped_query:
+            retrieval_query = stripped_query
     elif source_resolution.get("strip_title_mentions") and active_fnames:
         if source_resolution.get("reason") == "explicit_filename_unique":
             stripped_query = runtime.retrieval.strip_filename_mentions(query, active_fnames)
@@ -1626,7 +1643,7 @@ async def prepare_retrieval_query_context(
                 query,
                 locked_source,
                 open_topic_hint_sources,
-                raw_title_score=8.4,
+                raw_title_score=float(getattr(runtime.config, "OPEN_TOPIC_HINT_RAW_TITLE_SCORE", 8.4)),
                 top_competitors=[],
             )
             fnames = [locked_source]
@@ -1765,6 +1782,50 @@ async def prepare_retrieval_query_context(
                 dict.fromkeys(list(qfilters.get("_llm_aspects_extra") or []) + corpus_expanded_terms[:8])
             )
             qfilters["_corpus_expanded_terms"] = corpus_expanded_terms
+
+    if bool(getattr(runtime.config, "ENABLE_RETRIEVAL_HYDE", True)):
+        hyde_builder = getattr(runtime, "build_retrieval_hyde_query", None)
+        if callable(hyde_builder):
+            hyde_payload = await hyde_builder(
+                query,
+                dense_query,
+                query_intent=str(qfilters.get("_legal_intent") or ""),
+            )
+            if isinstance(hyde_payload, dict) and hyde_payload.get("used") and hyde_payload.get("query"):
+                dense_query = runtime.common.normalize_query(str(hyde_payload.get("query") or dense_query)) or dense_query
+                terms = [
+                    str(term)
+                    for term in (hyde_payload.get("terms") or [])
+                    if str(term or "").strip()
+                ]
+                if terms:
+                    retrieval_query = query_rewrite_core.expand_query_with_terms(retrieval_query, terms, limit=12)
+                    qfilters["_llm_anchor_extra"] = list(
+                        dict.fromkeys(list(qfilters.get("_llm_anchor_extra") or []) + terms[:4])
+                    )
+                    qfilters["_llm_aspects_extra"] = list(
+                        dict.fromkeys(list(qfilters.get("_llm_aspects_extra") or []) + terms[:8])
+                    )
+                qfilters["_hyde_used"] = True
+                qfilters["_hyde_mode"] = str(hyde_payload.get("mode") or "")
+                qfilters["_hyde_terms"] = terms[:12]
+                qfilters["_hyde_query"] = str(hyde_payload.get("hyde_query") or "")[:240]
+                source_resolution = {
+                    **dict(source_resolution or {}),
+                    "source_resolution_trace": {
+                        **dict((source_resolution or {}).get("source_resolution_trace") or {}),
+                        "retrieval_hyde": {
+                            "used": True,
+                            "mode": qfilters["_hyde_mode"],
+                            "terms": terms[:12],
+                            "query": qfilters["_hyde_query"],
+                            "llm_available": bool(hyde_payload.get("llm_available")),
+                            "llm_attempted": bool(hyde_payload.get("llm_attempted")),
+                            "llm_error": str(hyde_payload.get("llm_error") or ""),
+                            "llm_error_detail": str(hyde_payload.get("llm_error_detail") or "")[:240],
+                        },
+                    },
+                }
 
     if len(runtime.common.normalize_query(retrieval_query)) < max(2, int(getattr(runtime.config, "MIN_QUERY_CHARS", 2))):
         retrieval_query = retrieval_query_raw
@@ -2070,7 +2131,10 @@ async def prepare_retrieve_evidence_context(
                     "source": item.get("source") or "",
                     "evidence_query": item.get("evidence_query") or "",
                     "docs": retrieve_output_docs(
-                        item.get("selected_docs") or item.get("post_filter_docs") or item.get("retrieve_docs") or [],
+                        list(item.get("docs") or [])
+                        + list(item.get("selected_docs") or [])
+                        + list(item.get("post_filter_docs") or [])
+                        + list(item.get("retrieve_docs") or []),
                     ),
                     "score_mode": item.get("score_mode") or recall["score_mode"],
                 }

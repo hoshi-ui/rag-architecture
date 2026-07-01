@@ -1,4 +1,5 @@
-from evals.runners.score_documents_metrics import _score_answer_relevance, _score_retrieval
+from evals.runners.score_documents_metrics import _retrieved_docs, _score_answer_relevance, _score_retrieval
+from evals.runners.score_documents_metrics import _hit_breakdown
 
 
 def test_score_answer_relevance_matches_scope_labels_with_core_evidence():
@@ -74,3 +75,47 @@ def test_score_retrieval_splits_source_clause_content_and_metadata_coverage():
     assert scored["metadata_coverage_rate"] == 0.5
     assert scored["ref_diagnostics"][0]["source_hit"] is True
     assert scored["ref_diagnostics"][0]["clause_id_hit"] is False
+
+
+def test_source_hit_treats_same_canonical_docx_pdf_as_equivalent():
+    doc = {
+        "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf",
+        "article_no": "第五条",
+        "text": "第五条 工程勘察、设计、施工单位存在事故隐患的处理。",
+        "metadata": {"doc_id": "same", "article_no": "第五条"},
+    }
+    ref = {
+        "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "clause": "第五条",
+        "text": "第五条 工程勘察、设计、施工单位存在事故隐患的处理。",
+    }
+
+    breakdown = _hit_breakdown(doc, ref, similarity_threshold=0.6)
+
+    assert breakdown["source_hit"] is True
+    assert breakdown["clause_id_hit"] is True
+
+
+def test_retrieved_docs_extends_top_k_when_scores_have_no_elbow():
+    docs = [
+        {"source": "demo.docx", "text": f"chunk {idx}", "score": score}
+        for idx, score in enumerate([0.90, 0.87, 0.85, 0.83, 0.82, 0.81, 0.60], start=1)
+    ]
+    result = {"retrieved_documents": {"hybrid_rerank": docs}}
+
+    selected = _retrieved_docs(result, "hybrid_rerank", top_k=5)
+
+    assert len(selected) == 6
+    assert selected[-1]["text"] == "chunk 6"
+
+
+def test_retrieved_docs_stops_at_top_k_when_score_cliff_exists():
+    docs = [
+        {"source": "demo.docx", "text": f"chunk {idx}", "score": score}
+        for idx, score in enumerate([0.90, 0.87, 0.85, 0.83, 0.82, 0.70], start=1)
+    ]
+    result = {"retrieved_documents": {"hybrid_rerank": docs}}
+
+    selected = _retrieved_docs(result, "hybrid_rerank", top_k=5)
+
+    assert len(selected) == 5

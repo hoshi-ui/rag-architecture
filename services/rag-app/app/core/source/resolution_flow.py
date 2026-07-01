@@ -177,6 +177,7 @@ class SourceMatchMixin:
             normalize_filename=runtime.common.normalize_filename,
             dense_title_match_min_sim=float(getattr(runtime.config, "DENSE_TITLE_MATCH_MIN_SIM", 0.84)),
             dense_title_match_margin=float(getattr(runtime.config, "DENSE_TITLE_MATCH_MARGIN", 0.03)),
+            dense_title_extra_margin=float(getattr(runtime.config, "SOURCE_DENSE_TITLE_EXTRA_MARGIN", 0.05)),
             related_marker="鐩稿叧",
         )
     def resolve_topical_suffix_multi_doc(self, query: str, sources: List[str]) -> Dict[str, Any]:

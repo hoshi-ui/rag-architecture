@@ -154,23 +154,3 @@ class RetrievalPlanningMixin:
         )
     def expand_from_corpus(self, query: str, retrieval_query: str) -> Tuple[str, List[str]]:
         return retrieval_core.expand_retrieval_query_from_corpus(query, retrieval_query)
-    def post_recall_dynamic_source_lock(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
-        query = str(args[0] if len(args) > 0 else kwargs.pop("query", ""))
-        docs = list(args[1] if len(args) > 1 else kwargs.pop("docs", []) or [])
-        route = str(args[2] if len(args) > 2 else kwargs.pop("route", ""))
-        top_n = int(kwargs.pop("top_n", 10) or 10)
-        qfilters = kwargs.pop("qfilters", None)
-        return retrieval_core.post_recall_dynamic_source_lock(
-            query,
-            docs,
-            route,
-            top_n=top_n,
-            qfilters=qfilters,
-            seed_anchor_terms_for_probe=self.seed_anchor_terms_for_probe,
-            normalize_filename=self.runtime.common.normalize_filename,
-            hit_entity_source=self.runtime.evidence.hit_entity_source,
-            hit_display_text=self.runtime.evidence.hit_display_text,
-            canonical_doc_id_for_source=self.runtime.source.canonical_doc_id,
-            query_anchor_terms=self.runtime.query_anchor_terms,
-            normalize_query=self.runtime.common.normalize_query,
-        )

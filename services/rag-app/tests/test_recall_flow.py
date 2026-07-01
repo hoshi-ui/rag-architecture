@@ -14,12 +14,16 @@
 )
 from app.core.query.process import build_process_source_lock_result, prepare_process_evidence_context
 from app.core import retrieval as retrieval_core
+from app.core.control_plane import build_control_plane_metadata
+from app.core.query import rewrite as query_rewrite_core
 from app.core.compare import compare_source_set_completeness
 from app.core.source.explicit import extract_explicit_regulation_mentions
 from app.core.retrieval.clauses import clause_level_rerank
 from app.core.retrieval.chunks import intra_doc_chunk_rerank, merge_and_dedupe_hits
 from app.core.retrieval.ranking import _select_with_pinned_clauses, chunk_level_rerank
 from app.core.evidence.selection import select_retrieve_output_docs
+
+import asyncio
 
 
 class _Routing:
@@ -57,6 +61,18 @@ class _Retrieval:
 
     def clarification_candidates(self, query, seed_sources=None, limit=3):
         return list(seed_sources or [])[:limit]
+
+    def strip_filename_mentions(self, query, sources):
+        text = str(query or "")
+        for source in sources or []:
+            text = text.replace(str(source or ""), "")
+        return text.strip()
+
+    def strip_source_title_mentions(self, query, sources):
+        return self.strip_filename_mentions(query, sources)
+
+    def expand_from_corpus(self, query, retrieval_query):
+        return retrieval_query, []
 
 
 class _Common:
@@ -101,12 +117,25 @@ class _Compare:
     def target_not_found_prompt(missing, candidates):
         return "compare target not found"
 
+    @staticmethod
+    def strip_noise_terms(query):
+        return query
+
+
+class _Config:
+    ENABLE_SOURCE_LOCK_SOFT_DEGRADATION = True
+    SOURCE_LOCK_SOFT_DEGRADE_MIN_CONFIDENCE = 0.90
+    ENABLE_COMPARE_INTENT_TAG = True
+    ENABLE_LLM_QUERY_PARSE = False
+    ENABLE_RETRIEVAL_HYDE = False
+
 
 class _Runtime:
     common = _Common()
     routing = _Routing()
     retrieval = _Retrieval()
     compare = _Compare()
+    config = _Config()
 
 
 class _Control:
@@ -203,6 +232,49 @@ def test_explicit_regulation_extractor_keeps_real_legal_titles():
     )
 
     assert mentions == ["聊城市养犬管理条例"]
+
+
+def test_low_confidence_soft_lock_degrades_to_candidate_hint():
+    result = asyncio.run(
+        prepare_retrieval_query_context(
+            _Runtime(),
+            "测试条例 处罚规定",
+            "general",
+            {},
+            {},
+            {
+                "required": False,
+                "resolved": True,
+                "status": "locked",
+                "sources": ["测试条例.pdf"],
+                "target_fnames": ["测试条例.pdf"],
+                "reason": "doc_recall_unique",
+                "lock_mode": "soft_lock",
+                "lock_confidence": 0.72,
+                "source_lock_kind": "doc_recall_unique",
+            },
+            "content_qa",
+            None,
+            False,
+            {"quality": "valid"},
+            "",
+            {},
+            {"complete": False, "sources": []},
+            3,
+            ["测试条例.pdf"],
+            ["测试条例.pdf"],
+            False,
+            set(),
+        )
+    )
+
+    assert result["active_fnames"] == []
+    assert result["fnames"] == []
+    assert result["qfilters"]["_soft_source_scope"] is True
+    assert result["qfilters"]["_soft_degraded_source_lock"] is True
+    assert result["qfilters"]["_candidate_hint_sources"] == ["测试条例.pdf"]
+    assert result["source_resolution"]["status"] == "global_fallback"
+    assert result["source_resolution"]["source_resolution_trace"]["soft_degraded_source_lock"] is True
 
 
 def test_required_source_lock_delays_clarification_when_article_is_explicit():
@@ -825,9 +897,10 @@ def test_multi_doc_compare_process_keeps_pinned_selected_clause_before_rerank_ch
         "compare_source_results": [
             {
                 "source": "A.pdf",
+                "docs": [favorite, pinned],
                 "post_filter_docs": [favorite],
                 "selected_docs": [pinned],
-                "retrieve_docs": [pinned, favorite],
+                "retrieve_docs": [favorite, pinned],
                 "score_mode": "score",
             }
         ],
@@ -1030,6 +1103,152 @@ def test_title_candidates_are_hints_not_hard_filters_for_open_topic():
     assert result["qfilters"]["_soft_source_scope"] is True
     assert result["source_resolution"]["source_resolution_trace"]["title_candidates_as_hints"] is True
     assert result["source_resolution"]["source_resolution_trace"]["soft_source_scope"] is True
+
+
+def test_hyde_fallback_expands_abstract_penalty_query():
+    hyde = query_rewrite_core.build_hyde_fallback(
+        "聊城养犬的处罚",
+        terms=["责令改正", "罚款", "没收"],
+        intent="法律责任",
+    )
+
+    assert "聊城养犬的处罚" in hyde
+    assert "责令改正" in hyde
+    assert "罚款" in hyde
+    assert query_rewrite_core.has_abstract_legal_query("聊城养犬的处罚") is True
+
+
+def test_hyde_triggers_for_abstract_platform_deadline_and_duty_queries():
+    queries = [
+        "绍兴物业管理电子信息平台主要用于哪些事项？",
+        "比较林芝出租房租赁备案和聊城重点管理区个人养犬登记的办理期限与办理机关。",
+        "长春屠宰加工厂给畜禽肉品注水且违法所得难以计算时，应如何处罚？",
+        "比较三个场景中基层组织或社区主体承担的协助职责。",
+        "比较政府或主管部门在保护规划方面的职责。",
+    ]
+
+    for query in queries:
+        assert query_rewrite_core.has_abstract_legal_query(query) is True
+
+    platform_terms = query_rewrite_core.unpack_legal_abstractions_fallback(
+        "绍兴物业管理电子信息平台主要用于哪些事项？",
+        limit=12,
+    )
+    assert "信息平台" in platform_terms
+    assert "记录" in platform_terms
+
+    deadline_terms = query_rewrite_core.unpack_legal_abstractions_fallback(
+        "办理期限与办理机关",
+        limit=12,
+    )
+    assert "时限" in deadline_terms
+    assert "主管部门" in deadline_terms
+
+
+def test_prepare_retrieval_query_context_injects_hyde_into_dense_query():
+    class Config:
+        ENABLE_COMPARE_INTENT_TAG = False
+        ENABLE_LLM_QUERY_PARSE = False
+        ENABLE_RETRIEVAL_HYDE = True
+        RETRIEVAL_HYDE_ABSTRACT_ONLY = True
+        MIN_QUERY_CHARS = 2
+
+    class Retrieval(_Retrieval):
+        @staticmethod
+        def expand_from_corpus(query, retrieval_query):
+            return retrieval_query, []
+
+    class Source:
+        @staticmethod
+        def extract_title_candidates(query):
+            return []
+
+    class Runtime(_Runtime):
+        config = Config()
+        source = Source()
+        retrieval = Retrieval()
+
+        async def build_retrieval_hyde_query(self, query, retrieval_query="", query_intent=""):
+            terms = query_rewrite_core.unpack_legal_abstractions_fallback(query, limit=12)
+            hyde = query_rewrite_core.build_hyde_fallback(retrieval_query or query, terms=terms, intent=query_intent)
+            return {
+                "used": True,
+                "query": f"{retrieval_query} {hyde}",
+                "hyde_query": hyde,
+                "terms": terms,
+                "mode": "fallback",
+                "llm_available": False,
+                "llm_attempted": False,
+                "llm_error": "",
+                "llm_error_detail": "",
+            }
+
+    import asyncio
+
+    result = asyncio.run(
+        prepare_retrieval_query_context(
+            Runtime(),
+            "聊城养犬的处罚",
+            "general",
+            {},
+            {},
+            {
+                "required": False,
+                "resolved": False,
+                "status": "global_fallback",
+                "reason": "not_needed",
+                "sources": [],
+                "candidates": [],
+            },
+            "content_qa",
+            None,
+            False,
+            {"quality": "valid"},
+            "tier_2",
+            {},
+            {},
+            3,
+            [],
+            [],
+            False,
+            set(),
+        )
+    )
+
+    assert "责令改正" in result["dense_query"]
+    assert "罚款" in result["dense_query"]
+    assert result["qfilters"]["_hyde_used"] is True
+    assert result["qfilters"]["_hyde_mode"] == "fallback"
+    assert result["source_resolution"]["source_resolution_trace"]["retrieval_hyde"]["used"] is True
+    assert result["source_resolution"]["source_resolution_trace"]["retrieval_hyde"]["llm_attempted"] is False
+
+
+def test_control_plane_metadata_exports_hyde_trace_from_qfilters():
+    metadata = build_control_plane_metadata(
+        query="聊城养犬的处罚是什么？",
+        user_id="u",
+        final_channel="light_rag",
+        normalize_filename=lambda value: str(value or ""),
+        classify_query_scope=lambda query, targets, route: "document",
+        should_allow_llm_fallback_fn=lambda query, route, reason: False,
+        should_use_doc_fallback=lambda query, targets, route: False,
+        recall={
+            "query_route": "light_rag",
+            "qfilters": {
+                "_hyde_used": True,
+                "_hyde_mode": "fallback",
+                "_hyde_terms": ["责令改正", "罚款"],
+                "_hyde_query": "处罚。责令改正，处以罚款。",
+            },
+        },
+    )
+
+    hyde = metadata["source_resolution_trace"]["retrieval_hyde"]
+    assert hyde["used"] is True
+    assert hyde["mode"] == "fallback"
+    assert "罚款" in hyde["terms"]
+
+
 
 
 def test_candidate_hint_sources_add_supplemental_recall_without_hard_filter():
@@ -1410,6 +1629,55 @@ def test_source_pin_ignores_plain_target_sources_candidates():
     )
 
     assert selected[0]["entity"]["source"] == "wrong.pdf"
+
+
+def test_dynamic_elbow_selection_keeps_near_tied_sixth_chunk():
+    class Runtime:
+        common = _Common()
+
+        @staticmethod
+        def config_value(name, default=None):
+            values = {
+                "ENABLE_DYNAMIC_ELBOW_TRUNCATION": True,
+                "DYNAMIC_ELBOW_SCORE_DELTA": 0.025,
+                "DYNAMIC_ELBOW_MAX_EXTRA": 5,
+                "FINAL_CONTEXT_N_MAX": 10,
+            }
+            return values.get(name, default)
+
+    docs = [
+        {"entity": {"source": "demo.docx", "text": f"第{i}条", "metadata": {"chunk_id": i}}, "score": score}
+        for i, score in enumerate([0.90, 0.87, 0.85, 0.83, 0.82, 0.81, 0.60], start=1)
+    ]
+
+    selected = _select_with_pinned_clauses(Runtime(), docs, {}, "并列条款", final_n=5)
+
+    assert len(selected) == 6
+    assert selected[-1]["entity"]["metadata"]["chunk_id"] == 6
+
+
+def test_dynamic_elbow_selection_stops_on_score_cliff():
+    class Runtime:
+        common = _Common()
+
+        @staticmethod
+        def config_value(name, default=None):
+            values = {
+                "ENABLE_DYNAMIC_ELBOW_TRUNCATION": True,
+                "DYNAMIC_ELBOW_SCORE_DELTA": 0.025,
+                "DYNAMIC_ELBOW_MAX_EXTRA": 5,
+                "FINAL_CONTEXT_N_MAX": 10,
+            }
+            return values.get(name, default)
+
+    docs = [
+        {"entity": {"source": "demo.docx", "text": f"第{i}条", "metadata": {"chunk_id": i}}, "score": score}
+        for i, score in enumerate([0.90, 0.87, 0.85, 0.83, 0.82, 0.70], start=1)
+    ]
+
+    selected = _select_with_pinned_clauses(Runtime(), docs, {}, "断崖条款", final_n=5)
+
+    assert len(selected) == 5
 
 
 def test_chunk_rerank_adds_freshness_reward_for_newer_equivalent_source():

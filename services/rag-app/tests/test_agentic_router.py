@@ -110,6 +110,13 @@ class _Source:
     def validate_source_lock_candidate(self, query, target_text, source, *, prior=0.0, match_kind=""):
         return {"accepted": True, "score": 1.0, "reasons": ["test_accept"]}
 
+    def source_core_entities(self, source):
+        if source == "cement_rules_2018.pdf":
+            return ["Changchun"]
+        if source == "forest_rules_2024.docx":
+            return ["Changchun"]
+        return []
+
     def resolve_targets(self, query, fnames=None, user_id="anonymous"):
         return self.build_source_resolution_result(
             route="content_qa",
@@ -302,6 +309,26 @@ def test_agentic_subquery_expands_abstract_terms_without_polluting_doc_lock():
     assert subquery["doc_prior_query"] == "Shenzhen Construction Rules"
 
 
+def test_agentic_payload_does_not_promote_string_false_or_content_subqueries():
+    payload = {
+        "route": "content_qa",
+        "is_comparison": "false",
+        "is_multi_doc_compare": "false",
+        "documents": [],
+        "sub_queries": [
+            {"source": "Dog Rules", "query": "registration deadline"},
+            {"source": "Property Rules", "query": "platform duties"},
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.normalize_payload(payload)
+
+    assert result["is_comparison"] is False
+    assert result["is_multi_doc_compare"] is False
+    assert result["documents"] == []
+
+
 def test_agentic_compare_resolution_maps_subqueries_to_sources():
     runtime = _Runtime()
     route = {
@@ -337,6 +364,40 @@ def test_agentic_compare_resolution_maps_subqueries_to_sources():
     assert result["source_subqueries"]["property_rules_2023.pdf"]["section_query"] == "legal liability penalty"
 
 
+def test_agentic_compare_resolution_uses_subqueries_over_combined_document_span():
+    runtime = _Runtime()
+    route = {
+        "used": True,
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Dog Rules and Property Rules penalty comparison"],
+        "common_aspects": ["penalty"],
+        "sub_queries": [
+            {
+                "source": "Dog Rules",
+                "raw_text_query": "dog violations penalty fine",
+                "section_query": "legal liability penalty",
+                "doc_prior_query": "Dog Rules",
+            },
+            {
+                "source": "Property Rules",
+                "raw_text_query": "property management violations penalty fine",
+                "section_query": "legal liability penalty",
+                "doc_prior_query": "Property Rules",
+            },
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "compare two regulations", route)
+
+    assert result["resolved"] is True
+    assert result["subjects"] == ["Dog Rules", "Property Rules"]
+    assert result["missing_doc_targets"] == []
+    assert result["sources"] == ["dog_rules_2020.docx", "property_rules_2023.pdf"]
+
+
 def test_agentic_compare_resolution_keeps_incomplete_multi_target_unresolved():
     runtime = _Runtime()
     route = {
@@ -361,6 +422,202 @@ def test_agentic_compare_resolution_keeps_incomplete_multi_target_unresolved():
     assert result["compare_status"] == "target_incomplete"
     assert result["sources"] == ["dog_rules_2020.docx", "property_rules_2023.pdf"]
     assert result["missing_doc_targets"] == ["Missing Rules"]
+
+
+def test_agentic_compare_resolution_keeps_single_resolved_source_as_incomplete_multi_doc():
+    runtime = _Runtime()
+    route = {
+        "used": True,
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Dog Rules", "Missing Rules"],
+        "common_aspects": ["fees"],
+        "sub_queries": [
+            {"source": "Dog Rules", "raw_text_query": "dog fees", "section_query": "fees", "doc_prior_query": "Dog Rules"},
+            {"source": "Missing Rules", "raw_text_query": "missing fees", "section_query": "fees", "doc_prior_query": "Missing Rules"},
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "compare Dog Rules and Missing Rules fees", route)
+
+    assert result["route"] == "multi_doc_compare"
+    assert result["resolved"] is False
+    assert result["compare_status"] == "target_incomplete"
+    assert result["sources"] == ["dog_rules_2020.docx"]
+    assert result["missing_doc_targets"] == ["Missing Rules"]
+
+
+def test_agentic_compare_resolution_supplements_sources_from_entity_scan():
+    class Compare(_Compare):
+        _source_map = {
+            "Dog Rules": "dog_rules_2020.docx",
+        }
+
+    class Source(_Source):
+        _title_map = {
+            **_Source._title_map,
+            "forest_rules_2024.docx": "Forest Resource Rules",
+        }
+
+        def extract_title_candidates(self, target, limit=3):
+            if "forest" in str(target or "").lower():
+                return ["forest_rules_2024.docx"]
+            return []
+
+    class Runtime(_Runtime):
+        compare = Compare()
+        source = Source()
+
+    runtime = Runtime()
+    route = {
+        "used": True,
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Dog Rules", "Forest Rules"],
+        "common_aspects": ["fees"],
+        "sub_queries": [
+            {"source": "Dog Rules", "raw_text_query": "dog fees", "section_query": "fees", "doc_prior_query": "Dog Rules"},
+            {"source": "Forest Rules", "raw_text_query": "forest land fees", "section_query": "fees", "doc_prior_query": "Forest Rules"},
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "compare Dog Rules fees and forest land fees", route)
+
+    assert result["route"] == "multi_doc_compare"
+    assert result["resolved"] is True
+    assert result["sources"] == ["dog_rules_2020.docx", "forest_rules_2024.docx"]
+    assert result["source_subqueries"]["forest_rules_2024.docx"]["raw_text_query"]
+
+
+def test_agentic_supplemental_scan_does_not_add_unrelated_broad_matches():
+    class Compare(_Compare):
+        _source_map = {
+            "Dog Rules": "dog_rules_2020.docx",
+            "Property Rules": "property_rules_2023.pdf",
+        }
+
+    class Source(_Source):
+        _title_map = {
+            **_Source._title_map,
+            "cement_rules_2018.pdf": "Changchun Cement Rules",
+        }
+
+        def extract_title_candidates(self, target, limit=3):
+            if "duties" in str(target or "").lower():
+                return ["cement_rules_2018.pdf"]
+            return []
+
+    class Runtime(_Runtime):
+        compare = Compare()
+        source = Source()
+
+    runtime = Runtime()
+    route = {
+        "used": True,
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Dog Rules", "Property Rules"],
+        "common_aspects": ["duties"],
+        "sub_queries": [
+            {"source": "Dog Rules", "raw_text_query": "dog duties", "section_query": "duties", "doc_prior_query": "Dog Rules"},
+            {"source": "Property Rules", "raw_text_query": "property duties", "section_query": "duties", "doc_prior_query": "Property Rules"},
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "compare Dog Rules and Property Rules duties", route)
+
+    assert result["resolved"] is True
+    assert result["sources"] == ["dog_rules_2020.docx", "property_rules_2023.pdf"]
+    assert result["supplemented_targets"] == []
+
+
+def test_agentic_strict_scan_filters_candidates_by_dynamic_region():
+    class Compare(_Compare):
+        _source_map = {
+            "Shenzhen Market Rules": "shenzhen_market_rules.docx",
+            "Shenzhen Quality Rules": "shenzhen_quality_rules.pdf",
+        }
+
+    class Source(_Source):
+        _title_map = {
+            **_Source._title_map,
+            "shenzhen_market_rules.docx": "深圳市建筑市场规定",
+            "shenzhen_quality_rules.pdf": "深圳市建设工程质量条例",
+            "shaoxing_property_rules.pdf": "绍兴市物业管理条例",
+        }
+
+        def source_core_entities(self, source):
+            if str(source or "").startswith("shenzhen"):
+                return ["深圳市", "深圳"]
+            if str(source or "").startswith("shaoxing"):
+                return ["绍兴市", "绍兴"]
+            return []
+
+        def extract_title_candidates(self, target, limit=3):
+            if "深圳" in str(target or ""):
+                return ["shaoxing_property_rules.pdf", "shenzhen_quality_rules.pdf"]
+            return []
+
+    class Runtime(_Runtime):
+        compare = Compare()
+        source = Source()
+
+    runtime = Runtime()
+    route = {
+        "used": True,
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Shenzhen Market Rules", "深圳建设工程质量条例"],
+        "common_aspects": ["duties"],
+        "sub_queries": [
+            {"source": "Shenzhen Market Rules", "raw_text_query": "market duties", "section_query": "duties", "doc_prior_query": "Shenzhen Market Rules"},
+            {"source": "深圳建设工程质量条例", "raw_text_query": "quality duties", "section_query": "duties", "doc_prior_query": "深圳建设工程质量条例"},
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "compare Shenzhen regulations", route)
+
+    assert result["sources"] == ["shenzhen_market_rules.docx", "shenzhen_quality_rules.pdf"]
+    assert "shaoxing_property_rules.pdf" not in result["sources"]
+
+
+def test_agentic_source_validation_uses_target_query_not_whole_compare_query():
+    class Source(_Source):
+        def validate_source_lock_candidate(self, query, target_text, source, *, prior=0.0, match_kind=""):
+            if "Other Rules" in query:
+                return {"accepted": False, "hard_negative": True, "reasons": ["cross_target_pollution"]}
+            return {"accepted": True, "score": 1.0, "reasons": ["target_only"]}
+
+    class Runtime(_Runtime):
+        source = Source()
+
+    runtime = Runtime()
+    route = {
+        "used": True,
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Dog Rules", "Property Rules"],
+        "common_aspects": ["duties"],
+        "sub_queries": [
+            {"source": "Dog Rules", "raw_text_query": "dog duties", "section_query": "duties", "doc_prior_query": "Dog Rules"},
+            {"source": "Property Rules", "raw_text_query": "property duties", "section_query": "duties", "doc_prior_query": "Property Rules"},
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "compare Dog Rules and Other Rules duties", route)
+
+    assert result["resolved"] is True
+    assert result["sources"] == ["dog_rules_2020.docx", "property_rules_2023.pdf"]
 
 
 def test_agentic_compare_resolution_rejects_failed_source_lock_validation():
@@ -398,6 +655,53 @@ def test_agentic_compare_resolution_rejects_failed_source_lock_validation():
     assert result == {}
 
 
+def test_agentic_compare_resolution_keeps_multi_doc_when_one_of_three_targets_rejected():
+    class Source(_Source):
+        def validate_source_lock_candidate(self, query, target_text, source, *, prior=0.0, match_kind=""):
+            if source == "property_rules_2023.pdf":
+                return {
+                    "accepted": False,
+                    "score": 0.0,
+                    "hard_negative": True,
+                    "reasons": ["region_mismatch"],
+                }
+            return {"accepted": True, "score": 1.0, "reasons": ["test_accept"]}
+
+    class Compare(_Compare):
+        _source_map = {
+            **_Compare._source_map,
+            "Market Rules": "market_rules_2007.docx",
+        }
+
+    class Runtime(_Runtime):
+        compare = Compare()
+        source = Source()
+
+    runtime = Runtime()
+    route = {
+        "used": True,
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Dog Rules", "Property Rules", "Market Rules"],
+        "common_aspects": ["duties"],
+        "sub_queries": [
+            {"source": "Dog Rules", "raw_text_query": "dog duties", "section_query": "duties", "doc_prior_query": "Dog Rules"},
+            {"source": "Property Rules", "raw_text_query": "property duties", "section_query": "duties", "doc_prior_query": "Property Rules"},
+            {"source": "Market Rules", "raw_text_query": "market duties", "section_query": "duties", "doc_prior_query": "Market Rules"},
+        ],
+        "confidence": 0.9,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "compare three regulations", route)
+
+    assert result["route"] == "multi_doc_compare"
+    assert result["resolved"] is False
+    assert result["compare_status"] == "target_incomplete"
+    assert result["sources"] == ["dog_rules_2020.docx", "market_rules_2007.docx"]
+    assert result["rejected_doc_targets"][0]["source"] == "property_rules_2023.pdf"
+
+
 def test_prelude_prefers_agentic_compare_plan_over_rule_route():
     runtime = _Runtime()
 
@@ -416,6 +720,11 @@ def test_prelude_prefers_agentic_compare_plan_over_rule_route():
     assert result["source_resolution"]["source_lock_kind"] == "agentic_compare_lock"
     assert result["source_resolution"]["sources"] == ["dog_rules_2020.docx", "property_rules_2023.pdf"]
     assert result["source_resolution"]["compare_source_subqueries"]["dog_rules_2020.docx"]["raw_text_query"] == "dog violations penalty fine"
+    trace = result["source_resolution"]["source_resolution_trace"]
+    assert trace["final_source_resolution"]["selected"] == "agentic_router"
+    assert trace["final_source_resolution"]["status"] == "locked"
+    assert trace["rule_compare_diagnostic"]["ignored"] is True
+    assert "rule_source_resolution" not in trace
 
 
 def test_prelude_ignores_unresolved_agentic_compare_and_keeps_rule_global_fallback():
@@ -459,5 +768,88 @@ def test_agentic_router_does_not_promote_single_doc_extract_without_compare_inte
     }
 
     result = agentic_router.build_compare_resolution(runtime, "Dog Rules penalty rules", route)
+
+    assert result == {}
+
+
+def test_agentic_router_rejects_multi_doc_without_explicit_compare_intent():
+    runtime = _Runtime()
+    route = {
+        "used": True,
+        "reason": "llm_json",
+        "route": "multi_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": True,
+        "documents": ["Dog Rules", "Property Rules"],
+        "common_aspects": ["duties"],
+        "sub_queries": [
+            {
+                "source": "Dog Rules",
+                "raw_text_query": "alarm devices required",
+                "section_query": "safety devices",
+                "doc_prior_query": "Dog Rules",
+            },
+            {
+                "source": "Property Rules",
+                "raw_text_query": "alarm devices required",
+                "section_query": "safety devices",
+                "doc_prior_query": "Property Rules",
+            },
+        ],
+        "confidence": 0.95,
+    }
+
+    result = agentic_router.build_compare_resolution(runtime, "Dog Rules alarm device requirements", route)
+
+    assert result == {}
+    assert route["reason"] == "multi_doc_without_explicit_intent"
+
+
+def test_agentic_single_source_resolution_locks_unique_source():
+    runtime = _Runtime()
+    route = {
+        "used": True,
+        "route": "single_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": False,
+        "documents": ["Dog Rules"],
+        "sub_queries": [
+            {
+                "source": "Dog Rules",
+                "raw_text_query": "registration deadline",
+                "section_query": "registration",
+                "doc_prior_query": "Dog Rules",
+            }
+        ],
+        "confidence": 0.95,
+    }
+
+    result = agentic_router.build_single_source_resolution(runtime, "Dog registration deadline", route)
+
+    assert result["reason"] == "agentic_single_source_lock"
+    assert result["sources"] == ["dog_rules_2020.docx"]
+    assert result["source_resolution_trace"]["agentic_single_source_lock"] is True
+
+
+def test_agentic_single_source_resolution_rejects_unresolved_source():
+    runtime = _Runtime()
+    route = {
+        "used": True,
+        "route": "single_doc_compare",
+        "is_comparison": True,
+        "is_multi_doc_compare": False,
+        "documents": ["Missing Rules"],
+        "sub_queries": [
+            {
+                "source": "Missing Rules",
+                "raw_text_query": "registration deadline",
+                "section_query": "registration",
+                "doc_prior_query": "Missing Rules",
+            }
+        ],
+        "confidence": 0.95,
+    }
+
+    result = agentic_router.build_single_source_resolution(runtime, "Missing registration deadline", route)
 
     assert result == {}

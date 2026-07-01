@@ -8,8 +8,6 @@ from app.core import retrieval as retrieval_core
 from app.core.query import (
     _build_compare_status_matrix_answer,
     _compare_source_status_prompt_lines,
-    apply_post_recall_dynamic_lock,
-    build_dynamic_lock_clarification_result,
     build_empty_search_result,
     build_lightweight_recall_result,
     build_multi_doc_compare_result,
@@ -41,6 +39,75 @@ from app.core.query.recall_flow import has_forced_retrieval_signal
 
 
 class QueryRetrievalProcessMixin:
+    def _speculative_dense_query_candidate(
+        self,
+        query: str,
+        llm_parse: Dict[str, Any],
+        intent_classification: Dict[str, Any],
+    ) -> str:
+        runtime = self.runtime
+        for value in (
+            (llm_parse or {}).get("dense_query"),
+            (llm_parse or {}).get("retrieval_query"),
+            (llm_parse or {}).get("search_database_tool_query"),
+            (intent_classification or {}).get("search_database_tool_query"),
+            query,
+        ):
+            normalized = runtime.common.normalize_query(str(value or ""))
+            if normalized:
+                return normalized
+        return ""
+
+    def _start_speculative_embedding(self, dense_query_candidate: str) -> Optional[asyncio.Task]:
+        candidate = str(dense_query_candidate or "").strip()
+        if not candidate:
+            return None
+        return asyncio.create_task(
+            self.embedding_service.embed_with_sparse(
+                [candidate],
+                return_sparse=True,
+            )
+        )
+
+    def _consume_speculative_embedding_result(self, task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            return
+        except Exception as exc:
+            try:
+                self.runtime.logger.warning("speculative_embedding_discarded: %s", exc)
+            except Exception:
+                pass
+
+    def _discard_speculative_embedding(self, task: Optional[asyncio.Task]) -> None:
+        if task is None:
+            return
+        if not task.done():
+            task.cancel()
+        task.add_done_callback(self._consume_speculative_embedding_result)
+
+    async def _embed_dense_query(
+        self,
+        dense_query: str,
+        speculative_query: str,
+        speculative_task: Optional[asyncio.Task],
+    ) -> tuple[List[float], Optional[Dict[int, float]]]:
+        runtime = self.runtime
+        final_query = runtime.common.normalize_query(str(dense_query or ""))
+        candidate = runtime.common.normalize_query(str(speculative_query or ""))
+        if speculative_task is not None and final_query and final_query == candidate:
+            query_embeddings, query_sparse_embeddings = await speculative_task
+        else:
+            self._discard_speculative_embedding(speculative_task)
+            query_embeddings, query_sparse_embeddings = await self.embedding_service.embed_with_sparse(
+                [dense_query],
+                return_sparse=True,
+            )
+        query_embedding = query_embeddings[0]
+        query_sparse_embedding = query_sparse_embeddings[0] if query_sparse_embeddings else None
+        return query_embedding, query_sparse_embedding
+
     async def _run_target_scoped_recall(
         self,
         query: str,
@@ -100,6 +167,8 @@ class QueryRetrievalProcessMixin:
         classifier_compare = prelude["classifier_compare"]
         query_quality = prelude["query_quality"]
         intent_tier = prelude["intent_tier"]
+        speculative_dense_query = self._speculative_dense_query_candidate(query, llm_parse, intent_classification)
+        speculative_embedding_task = self._start_speculative_embedding(speculative_dense_query)
 
         source_context = prepare_recall_source_context(
             runtime,
@@ -116,6 +185,7 @@ class QueryRetrievalProcessMixin:
             user_id=user_id,
         )
         if source_context.get("early_return") is not None:
+            self._discard_speculative_embedding(speculative_embedding_task)
             return source_context["early_return"]
 
         compare_plan = source_context["compare_plan"]
@@ -149,6 +219,7 @@ class QueryRetrievalProcessMixin:
             user_id=user_id,
         )
         if lock_context.get("early_return") is not None:
+            self._discard_speculative_embedding(speculative_embedding_task)
             return lock_context["early_return"]
 
         source_resolution = lock_context["source_resolution"]
@@ -178,6 +249,7 @@ class QueryRetrievalProcessMixin:
             query_explicit_set,
         )
         if query_context.get("early_return") is not None:
+            self._discard_speculative_embedding(speculative_embedding_task)
             return query_context["early_return"]
 
         retrieval_query = query_context["retrieval_query"]
@@ -189,12 +261,11 @@ class QueryRetrievalProcessMixin:
         active_fnames = query_context["active_fnames"]
         is_comparison = query_context["is_comparison"]
 
-        query_embeddings, query_sparse_embeddings = await self.embedding_service.embed_with_sparse(
-            [dense_query],
-            return_sparse=True,
+        query_embedding, query_sparse_embedding = await self._embed_dense_query(
+            dense_query,
+            speculative_dense_query,
+            speculative_embedding_task,
         )
-        query_embedding = query_embeddings[0]
-        query_sparse_embedding = query_sparse_embeddings[0] if query_sparse_embeddings else None
         recall_window = compute_recall_window(runtime.config, top_k, enable_rerank, active_fnames)
         requested_k = recall_window["requested_k"]
         recall_k = recall_window["recall_k"]
@@ -377,45 +448,6 @@ class QueryRetrievalProcessMixin:
         retrieve_docs = recall_processing["retrieve_docs"]
         selected_docs = recall_processing["selected_docs"]
         post_filter_docs = recall_processing["post_filter_docs"]
-
-        dynamic_lock = runtime.retrieval.post_recall_dynamic_source_lock(
-            query,
-            retrieve_docs or post_filter_docs or docs,
-            query_route,
-            qfilters=qfilters,
-        )
-        dynamic_lock_context = apply_post_recall_dynamic_lock(source_resolution, active_fnames, dynamic_lock)
-        source_resolution = dynamic_lock_context["source_resolution"]
-        active_fnames = dynamic_lock_context["active_fnames"]
-        if dynamic_lock.get("action") == "clarify" and not has_forced_retrieval_signal(runtime, query):
-            return build_dynamic_lock_clarification_result(
-                runtime,
-                query,
-                retrieval_query,
-                retrieval_query_raw,
-                dense_query,
-                qtype,
-                qfilters,
-                llm_parse,
-                intent_classification,
-                is_comparison,
-                docs,
-                visible_dense,
-                visible_lex,
-                selected_docs,
-                post_filter_docs,
-                retrieve_docs,
-                dense_source_scores,
-                score_mode,
-                reranked_chunk,
-                recall_k,
-                final_n,
-                weak_query,
-                dynamic_lock,
-                source_resolution,
-                compare_plan,
-                intent_tier,
-            )
 
         return build_lightweight_recall_result(
             runtime,
@@ -704,21 +736,6 @@ class QueryRetrievalProcessMixin:
             verify_answer_ms = 0.0
             if structured_answer:
                 answer = runtime.answer.render_structured_markdown(structured_answer)
-            elif (
-                (not compare_matrix_mode)
-                and evidence
-                and answer
-                and bool(getattr(runtime.config, "ENABLE_FINAL_FACT_VERIFY", False))
-            ):
-                verify_started = time.perf_counter()
-                answer = await self.verify_answer(
-                    query,
-                    evidence,
-                    answer,
-                    aspect_plan=aspect_plan,
-                    max_tokens=limits["max_tokens"],
-                )
-                verify_answer_ms = time.perf_counter() - verify_started
             answer_ms = draft_answer_ms + verify_answer_ms
 
             refusal_answer = runtime.guardrails.invalid_query_message("evidence_insufficient")

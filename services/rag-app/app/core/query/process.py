@@ -81,7 +81,12 @@ def _compare_pinned_docs(runtime: Any, item: Dict[str, Any], limit: int = 2) -> 
         source = str(item.get("source") or "").strip()
     out: List[Any] = []
     seen = set()
-    for doc in list(item.get("selected_docs") or []) + list(item.get("post_filter_docs") or []):
+    for doc in (
+        list(item.get("selected_docs") or [])
+        + list(item.get("post_filter_docs") or [])
+        + list(item.get("retrieve_docs") or [])
+        + list(item.get("docs") or [])
+    ):
         if source and _process_doc_source(runtime, doc) != source:
             continue
         identity = _process_doc_identity(runtime, doc)
@@ -89,6 +94,20 @@ def _compare_pinned_docs(runtime: Any, item: Dict[str, Any], limit: int = 2) -> 
             continue
         seen.add(identity)
         out.append(_mark_compare_pinned_doc(runtime, doc, source, len(out) + 1))
+        if len(out) >= max(1, int(limit or 1)):
+            break
+    return out
+
+
+def _recall_pinned_docs(runtime: Any, recall: Dict[str, Any], limit: int = 3) -> List[Any]:
+    out: List[Any] = []
+    seen = set()
+    for doc in list((recall or {}).get("retrieve_docs") or []):
+        identity = _process_doc_identity(runtime, doc)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        out.append(doc)
         if len(out) >= max(1, int(limit or 1)):
             break
     return out
@@ -368,12 +387,14 @@ async def prepare_lightweight_recall_prelude(
         if agentic_compare_resolution:
             original_source_resolution = dict(source_resolution or {})
             resolved = bool(agentic_compare_resolution.get("resolved"))
+            agentic_sources = list(agentic_compare_resolution.get("sources") or [])
+            final_status = "locked" if resolved and agentic_sources else "global_fallback"
             source_resolution = runtime.source.build_source_resolution_result(
                 route=agentic_compare_resolution.get("route") or "multi_doc_compare",
                 required=bool(agentic_compare_resolution.get("required")),
                 resolved=resolved,
-                sources=list(agentic_compare_resolution.get("sources") or []),
-                candidates=list(agentic_compare_resolution.get("sources") or []),
+                sources=agentic_sources,
+                candidates=agentic_sources,
                 reason=agentic_compare_resolution.get("reason") or "agentic_router",
                 strip_title_mentions=bool(agentic_compare_resolution.get("strip_title_mentions")),
                 clarification=agentic_compare_resolution.get("clarification") or "",
@@ -391,7 +412,24 @@ async def prepare_lightweight_recall_prelude(
                         "rationale": agentic_route.get("rationale") or "",
                         "sub_queries": list(agentic_route.get("sub_queries") or []),
                     },
-                    "rule_source_resolution": original_source_resolution,
+                    "final_source_resolution": {
+                        "selected": "agentic_router",
+                        "route": agentic_compare_resolution.get("route") or "multi_doc_compare",
+                        "status": final_status,
+                        "source_lock_kind": "agentic_compare_lock",
+                        "target_fnames": agentic_sources,
+                        "compare_status": agentic_compare_resolution.get("compare_status") or "",
+                        "reason": agentic_compare_resolution.get("reason") or "agentic_router",
+                    },
+                    "rule_compare_diagnostic": {
+                        "ignored": True,
+                        "route": original_source_resolution.get("route") or "",
+                        "status": original_source_resolution.get("status") or "",
+                        "reason": original_source_resolution.get("reason") or "",
+                        "compare_status": original_source_resolution.get("compare_status") or "",
+                        "compare_subjects": list(original_source_resolution.get("compare_subjects") or []),
+                        "compare_missing_targets": list(original_source_resolution.get("compare_missing_targets") or []),
+                    },
                 },
                 compare_subjects=list(agentic_compare_resolution.get("subjects") or []),
                 compare_doc_like_subjects=list(agentic_compare_resolution.get("doc_like_subjects") or []),
@@ -414,6 +452,82 @@ async def prepare_lightweight_recall_prelude(
                     "confidence": float(agentic_route.get("confidence") or 0.0),
                     "rationale": agentic_route.get("rationale") or "",
                     "sub_queries": list(agentic_route.get("sub_queries") or []),
+                },
+            }
+        else:
+            agentic_single_resolution = agentic_router.build_single_source_resolution(runtime, query, agentic_route)
+            if agentic_single_resolution:
+                original_source_resolution = dict(source_resolution or {})
+                source_resolution = runtime.source.build_source_resolution_result(
+                    route=agentic_single_resolution.get("route") or original_source_resolution.get("route") or "content_qa",
+                    required=bool(agentic_single_resolution.get("required")),
+                    resolved=True,
+                    sources=list(agentic_single_resolution.get("sources") or []),
+                    candidates=list(agentic_single_resolution.get("candidates") or agentic_single_resolution.get("sources") or []),
+                    reason=agentic_single_resolution.get("reason") or "agentic_single_source_lock",
+                    strip_title_mentions=bool(agentic_single_resolution.get("strip_title_mentions")),
+                    clarification=agentic_single_resolution.get("clarification") or "",
+                    target_text=agentic_single_resolution.get("target_text") or "",
+                    lock_mode=agentic_single_resolution.get("lock_mode") or "implicit_lock",
+                    lock_confidence=float(agentic_single_resolution.get("lock_confidence") or agentic_route.get("confidence") or 0.0),
+                    source_lock_kind=agentic_single_resolution.get("source_lock_kind") or "agentic_single_source_lock",
+                    source_resolution_trace={
+                        **dict(original_source_resolution.get("source_resolution_trace") or {}),
+                        **dict(agentic_single_resolution.get("source_resolution_trace") or {}),
+                        "final_source_resolution": {
+                            "selected": "agentic_single_source_lock",
+                            "route": agentic_single_resolution.get("route") or "content_qa",
+                            "status": "locked",
+                            "source_lock_kind": agentic_single_resolution.get("source_lock_kind") or "agentic_single_source_lock",
+                            "target_fnames": list(agentic_single_resolution.get("sources") or []),
+                            "reason": agentic_single_resolution.get("reason") or "agentic_single_source_lock",
+                        },
+                    },
+                )
+                intent_classification = {
+                    **dict(intent_classification),
+                    "agentic_router_used": True,
+                    "agentic_router": {
+                        "route": agentic_route.get("route") or "",
+                        "query_intent": agentic_route.get("query_intent") or "",
+                        "confidence": float(agentic_route.get("confidence") or 0.0),
+                        "rationale": agentic_route.get("rationale") or "",
+                        "sub_queries": list(agentic_route.get("sub_queries") or []),
+                        "accepted": True,
+                        "accepted_as": "single_source_lock",
+                    },
+                }
+        if (
+            not agentic_compare_resolution
+            and source_resolution.get("source_lock_kind") != "agentic_single_source_lock"
+            and agentic_route.get("used")
+        ):
+            source_resolution = {
+                **dict(source_resolution or {}),
+                "source_resolution_trace": {
+                    **dict((source_resolution or {}).get("source_resolution_trace") or {}),
+                    "agentic_router_diagnostic": {
+                        "used": True,
+                        "accepted": False,
+                        "route": agentic_route.get("route") or "",
+                        "query_intent": agentic_route.get("query_intent") or "",
+                        "confidence": float(agentic_route.get("confidence") or 0.0),
+                        "reason": agentic_route.get("reason") or "",
+                        "rationale": agentic_route.get("rationale") or "",
+                        "sub_queries": list(agentic_route.get("sub_queries") or []),
+                    },
+                },
+            }
+            intent_classification = {
+                **dict(intent_classification),
+                "agentic_router_used": True,
+                "agentic_router": {
+                    "route": agentic_route.get("route") or "",
+                    "query_intent": agentic_route.get("query_intent") or "",
+                    "confidence": float(agentic_route.get("confidence") or 0.0),
+                    "rationale": agentic_route.get("rationale") or "",
+                    "sub_queries": list(agentic_route.get("sub_queries") or []),
+                    "accepted": False,
                 },
             }
     rule_query_route = (
@@ -700,7 +814,11 @@ async def prepare_process_evidence_context(
         for x in (recall.get("target_sources") or original_fnames)
         if runtime.common.normalize_filename(x)
     ]
-    process_input_docs = recall["selected_docs"]
+    process_input_docs = _prepend_unique_process_docs(
+        runtime,
+        _recall_pinned_docs(runtime, recall, limit=3),
+        recall["selected_docs"],
+    )
 
     process_seed_docs = runtime.evidence.select_process_docs(
         query,

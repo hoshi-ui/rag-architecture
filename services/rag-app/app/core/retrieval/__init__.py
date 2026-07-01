@@ -15,7 +15,6 @@ from app.core.retrieval.query import (
     edit_similarity_ratio,
     soft_lock_has_duplicate_formats,
     soft_lock_confidence,
-    post_recall_dynamic_source_lock,
     strip_compare_noise_terms,
     strip_raw_text_mentions,
     strip_filename_mentions,

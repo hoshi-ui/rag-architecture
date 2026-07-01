@@ -34,6 +34,7 @@ class AnswerAdapter:
         llm_presence_penalty: float,
         llm_timeout: float,
         final_fact_verify_max_tokens: int,
+        config: Any = None,
         hit_metadata: Optional[Callable[[Any], Dict[str, Any]]] = None,
         hit_entity_source: Optional[Callable[[Any], str]] = None,
         get_chunks_for_source: Optional[Callable[[str, Optional[int]], List[Dict[str, Any]]]] = None,
@@ -56,6 +57,7 @@ class AnswerAdapter:
         self.llm_presence_penalty = llm_presence_penalty
         self.llm_timeout = llm_timeout
         self.final_fact_verify_max_tokens = final_fact_verify_max_tokens
+        self.config = config
 
 
 def _answer_context(runtime: Any) -> AnswerAdapter:
@@ -217,13 +219,7 @@ def should_use_structured_answer_schema(
     aspect_plan: str,
     enable_structured_answer_json: bool,
 ) -> bool:
-    if not enable_structured_answer_json:
-        return False
-    if qtype in {"compare", "compare_degraded", "fallback_brief"}:
-        return False
-    if answer_mode in {"rag_related_doc", "compare_asymmetric", "compare_degraded"}:
-        return False
-    return bool(str(aspect_plan or "").strip())
+    return False
 
 
 LEGAL_CLAUSE_RE = re.compile(r"第[一二三四五六七八九十百千万零〇两\d]+条")
@@ -425,38 +421,6 @@ def parse_answer_aspect_plan(aspect_plan: str) -> List[Dict[str, Any]]:
     return entries
 
 
-def build_structured_answer_prompt(
-    query: str,
-    evidence: str,
-    qtype: str,
-    answer_mode: str,
-    uncovered_aspects: Optional[List[str]],
-    aspect_plan: str,
-    evidence_gate_warning: str = "",
-) -> str:
-    legal_rules = legal_clause_answer_rules(query, evidence, answer_mode)
-    citation_rules = (
-        "引用纪律：context 编号已按相关性降序排列，[1] 是最高分证据。"
-        "citations 只能填写 context 中存在的编号；每个 item 使用最直接、最小充分的证据编号。"
-        "不同事实来自不同证据时必须分别填写 citations，禁止用宽泛编号覆盖未被该证据支持的结论。\n"
-    )
-    return citation_rules + legal_rules + (
-        "请严格基于<context>中的证据生成 JSON。\n"
-        "如果处于法条枚举模式，JSON 中 aspects 只使用“条文列举”这一个名称；"
-        "item.keyword 填写具体条文或条项，例如“第二十二条第（一）项”；"
-        "item.content 保持接近原文，不要写成主题解读。\n"
-        "重要引用规则：禁止输出“[证据 n]”或“证据 n”，只能在 item.citations 中写数字数组，例如 [1, 2]；"
-        "不得引用 context 中不存在的编号。\n"
-        "JSON 结构：{\"aspects\":[{\"name\":\"方面\",\"items\":[{\"keyword\":\"关键词\",\"content\":\"结论\",\"citations\":[1]}]}],"
-        "\"uncovered_aspects\":[]}。\n"
-        f"问题类型：{qtype}\n回答模式：{answer_mode}\n问题：{query}\n"
-        f"方面计划：\n{aspect_plan or '(无)'}\n"
-        f"未覆盖方面：{', '.join(uncovered_aspects or []) or '(无)'}\n"
-        f"证据门控提示：{evidence_gate_warning or '(无)'}\n"
-        f"<context>\n{evidence}\n</context>"
-    )
-
-
 def build_answer_prompt(
     query: str,
     evidence: str,
@@ -469,33 +433,33 @@ def build_answer_prompt(
     aspect_plan: str,
     evidence_gate_warning: str = "",
 ) -> str:
-    points = int((answer_limits or {}).get("points") or 5)
-    legal_rules = legal_clause_answer_rules(query, evidence, answer_mode)
-    compare_rules = ""
-    if qtype in {"compare", "compare_degraded"}:
-        compare_rules = (
-            "对比题回答要求：不要只罗列各文档条款。必须先用 1-2 句概括核心不同点，"
-            "再按处罚主体、处罚对象/行为、处罚种类、罚款幅度、特别后果等维度归纳差异。"
-            "每个差异点都要同时说明两边如何不同；如果某一边证据没有覆盖，要明确写“证据未覆盖”，不要编造。\n"
-        )
-    citation_rules = (
-        "引用纪律：context 编号已按相关性降序排列，[1] 是最高分证据。"
-        "每个事实结论必须引用最直接、最小充分的证据编号；不同事实来自不同证据时必须分别引用。"
-        "禁止编造 context 中不存在的编号，禁止用宽泛编号覆盖未被该证据支持的结论。"
-        "引用格式只能是连续的正文编号，例如 [1] 或 [1][2]，不要写 [1,2]、[1-3]、[[1]]。\n"
-    )
     return (
-        "请只依据<context>中的内容回答。每个事实性结论后必须使用 [1]、[2] 这种正文编号引用；"
-        "禁止输出 [证据 n]、证据 n、来源 n 等格式。没有证据时请拒答。\n"
-        f"{legal_rules}"
-        f"{compare_rules}"
-        f"建议要点数：{points}\n问题类型：{qtype}\n回答模式：{answer_mode}\n"
+        "请先仔细阅读以下参考材料：\n"
+        "<context>\n"
+        f"{evidence}\n"
+        "</context>\n\n"
+        "====================\n"
+        "【系统强制指令与答题红线】\n"
+        "你是一个严谨的中国法律法规问答助手。你刚才阅读了上述 <context>，现在请针对以下问题进行回答。\n\n"
+        f"问题：{query}\n\n"
+        "【当前答题环境】\n"
+        f"问题类型：{qtype}\n"
+        f"回答模式：{answer_mode}\n"
         f"缺失对比目标：{', '.join(compare_missing_targets or []) or '(无)'}\n"
-        f"对比状态提示：{compare_source_status_hints or '(无)'}\n"
-        f"方面计划：\n{aspect_plan or '(无)'}\n"
-        f"未覆盖方面：{', '.join(uncovered_aspects or []) or '(无)'}\n"
-        f"证据门控提示：{evidence_gate_warning or '(无)'}\n"
-        f"问题：{query}\n<context>\n{evidence}\n</context>"
+        f"证据门控提示：{evidence_gate_warning or '(无)'}\n\n"
+        "【绝对纪律红线】（必须 100% 遵守，否则将被判定为严重错误）\n"
+        "1. 零幻觉底线：只允许依据 <context> 中的内容作答。如果没有提供足够证据，必须明确回复“检索到的参考文档中未提供相关规定”，绝不允许动用你的内部知识编造！\n"
+        "2. 极简引用原则：每个事实结论后必须紧跟最小、最直接的正文编号引用（例如 [1] 或 [1][2]）。严禁列举不相关的相邻条款、程序条款或兜底条款！\n"
+        "3. 格式封杀：严禁输出“[证据 n]”、“证据 n”、“来源 n”、“[1-3]”、“[[1]]”等格式，只能使用干净的方括号数字。\n\n"
+        "【输出结构强制要求】\n"
+        "如果当前【问题类型】为对比题（或涉及多部法规），你必须严格使用以下 Markdown 结构进行作答，不得遗漏任何一部目标法规：\n"
+        "### 1. 《[第一部相关法规名称]》的规定\n"
+        "（依据上下文，结合具体的 [n] 引用进行总结。如未提及，直接回答“未提及”）\n"
+        "### 2. 《[第二部相关法规名称]》的规定\n"
+        "（依据上下文，结合具体的 [n] 引用进行总结。如未提及，直接回答“未提及”）\n"
+        "### 3. 综合对比分析\n"
+        "（一句话精准总结差异或共同点）\n\n"
+        "请开始你的严格作答："
     )
 
 
@@ -623,7 +587,8 @@ def match_structured_aspect_entry(runtime: Any, name: str, plan_entries: List[Di
         if score > best_score:
             best = entry
             best_score = score
-    return best if best_score >= 35 else None
+    min_score = float(getattr(_answer_context(runtime).config, "ANSWER_STRUCTURED_ASPECT_MATCH_MIN_SCORE", 35))
+    return best if best_score >= min_score else None
 
 
 def dedupe_structured_answer_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -1170,44 +1135,20 @@ async def generate_structured_answer(
     docs: Optional[List[Any]] = None,
     evidence_gate_warning: str = "",
 ) -> Tuple[str, Optional[Dict[str, Any]]]:
-    context_adapter = _answer_context(runtime)
-    prompt = build_structured_answer_prompt(
+    answer = await generate_answer(
+        runtime,
+        llm_client,
+        logger_obj,
         query,
         context,
-        qtype,
-        answer_mode,
-        uncovered_aspects,
-        aspect_plan,
+        qtype=qtype,
+        max_tokens=max_tokens,
+        answer_mode=answer_mode,
+        uncovered_aspects=uncovered_aspects,
+        aspect_plan=aspect_plan,
         evidence_gate_warning=evidence_gate_warning,
     )
-    system_prompt = (
-        "你是法规问答助手。请输出严格 JSON，不要输出 Markdown。引用只使用数字数组，不要输出 [证据 n]。"
-        + legal_clause_answer_rules(query, context, answer_mode)
-    )
-    payload = llm_client.build_payload(
-        system_prompt,
-        prompt,
-        temperature=context_adapter.llm_temperature,
-        top_p=context_adapter.llm_top_p,
-        max_tokens=int(max_tokens or context_adapter.llm_max_tokens),
-        presence_penalty=context_adapter.llm_presence_penalty,
-    )
-    started = time.perf_counter()
-    try:
-        content = await llm_client.chat_text(payload, timeout=context_adapter.llm_timeout)
-        _log_llm_timing(context_adapter, llm_client, logger_obj, "structured_answer", payload, time.perf_counter() - started, evidence=context, output=content)
-    except Exception as exc:
-        _log_llm_timing(context_adapter, llm_client, logger_obj, "structured_answer", payload, time.perf_counter() - started, evidence=context, error=type(exc).__name__)
-        logger_obj.error(f"Structured answer generation error: {str(exc)}")
-        return "当前证据不足，暂不能基于已检索资料回答。", None
-    payload_obj = parse_structured_answer_payload(content)
-    if not payload_obj:
-        answer = normalize_answer_citation_style(content)
-        return answer, structured_answer_from_markdown(context_adapter, answer, aspect_plan, docs or [], uncovered_aspects)
-    structured = normalize_structured_answer_payload(context_adapter, payload_obj, aspect_plan, docs or [])
-    if not structured.get("aspects"):
-        return normalize_answer_citation_style(content), None
-    return render_structured_answer_markdown(context_adapter, structured), structured
+    return answer, None
 
 
 async def verify_answer(

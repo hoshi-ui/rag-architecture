@@ -15,9 +15,27 @@ if ROOT not in sys.path:
 from app.storage.milvus import VectorDBService
 
 
+MOJIBAKE_MARKER_CODES = (
+    0x951B,
+    0x7ED7,
+    0x9418,
+    0x9471,
+    0x6D93,
+    0x6D60,
+    0x9428,
+    0x9366,
+    0x94CF,
+    0x95C2,
+    0x95C1,
+    0x95BB,
+    0x9429,
+    0x93AC,
+    0x5A09,
+    0x7F03,
+    0x741B,
+)
 MOJIBAKE_MARKER_RE = re.compile(
-    r"[\ue000-\uf8ff\ufffd]"
-    r"|锛|绗|鐘|鑱|涓|浠|鐨|鍦|铏|闂|闁|閻|鐩|鎬|娉|缃|琛"
+    r"[\ue000-\uf8ff\ufffd]|" + "|".join(re.escape(chr(code)) for code in MOJIBAKE_MARKER_CODES)
 )
 
 

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # ==================== 向量数据库 ====================
   milvus:
-    image: milvusdb/milvus:latest
+    image: ${MILVUS_IMAGE:-milvusdb/milvus:v2.4.17}
     container_name: milvus-standalone
     command: [ "milvus", "run", "standalone" ]
     environment:
@@ -17,6 +17,7 @@ services:
       - "9091:9091"
     networks:
       - rag-network
+    restart: unless-stopped
     deploy:
       resources:
         reservations:
@@ -46,15 +47,16 @@ services:
       - etcd_data:/etcd
     networks:
       - rag-network
+    restart: unless-stopped
 
   # MinIO for Milvus
   minio:
-    image: minio/minio:latest
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2024-12-18T13-15-44Z}
     container_name: milvus-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - minio_data:/data
     ports:
@@ -62,6 +64,7 @@ services:
       - "9001:9001"
     networks:
       - rag-network
+    restart: unless-stopped
 
   # ==================== 嵌入服务 ====================
   embedding-service:
@@ -70,13 +73,14 @@ services:
       dockerfile: Dockerfile
     container_name: embedding-service
     environment:
-      - MODEL_NAME=/models/BAAI/bge-m3
-      - MAX_LENGTH=8192
-      - BATCH_SIZE=32
-      - ENABLE_SPARSE_EMBEDDING=true
-      - BGE_M3_USE_FP16=true
+      - MODEL_NAME=${EMBEDDING_MODEL_NAME:-/models/BAAI/bge-m3}
+      - MAX_LENGTH=${EMBEDDING_MAX_LENGTH:-8192}
+      - BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-32}
+      - SERVICE_PORT=${EMBEDDING_SERVICE_PORT:-8000}
+      - ENABLE_SPARSE_EMBEDDING=${ENABLE_SPARSE_EMBEDDING:-true}
+      - BGE_M3_USE_FP16=${BGE_M3_USE_FP16:-true}
     volumes:
-      - ./local-models:/models
+      - ${LOCAL_MODELS_DIR:-./local-models}:/models
       - embedding_cache:/cache
     networks:
       - rag-network
@@ -85,10 +89,10 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: ${EMBEDDING_GPU_COUNT:-1}
               capabilities: [gpu]
     ports:
-      - "8001:8000"
+      - "${EMBEDDING_HOST_PORT:-8001}:${EMBEDDING_SERVICE_PORT:-8000}"
 
   # ==================== 重排序服务 ====================
   rerank-service:
@@ -97,11 +101,13 @@ services:
       dockerfile: Dockerfile
     container_name: rerank-service
     environment:
-      - MODEL_NAME=/models/BAAI/bge-reranker-base
-      - MAX_LENGTH=512
-      - BATCH_SIZE=16
+      - MODEL_NAME=${RERANK_MODEL_NAME:-/models/BAAI/bge-reranker-base}
+      - MAX_LENGTH=${RERANK_MAX_LENGTH:-512}
+      - BATCH_SIZE=${RERANK_BATCH_SIZE:-16}
+      - SERVICE_PORT=${RERANK_SERVICE_PORT:-8000}
+      - RERANK_DEFAULT_TOP_N=${RERANK_DEFAULT_TOP_N:-10}
     volumes:
-      - ./local-models:/models
+      - ${LOCAL_MODELS_DIR:-./local-models}:/models
     networks:
       - rag-network
     deploy:
@@ -109,10 +115,10 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: ${RERANK_GPU_COUNT:-1}
               capabilities: [gpu]
     ports:
-      - "8002:8000"
+      - "${RERANK_HOST_PORT:-8002}:${RERANK_SERVICE_PORT:-8000}"
 
   # ==================== 应用服务 ====================
   rag-app:
@@ -121,10 +127,15 @@ services:
       dockerfile: Dockerfile
     container_name: rag-app
     env_file:
-      - ./config/app.env
+      - ${RAG_APP_ENV_FILE:-./config/app.env}
     environment:
       RAG_DATABASE_DIR: /database
       SQLITE_BUSY_TIMEOUT_SEC: "60"
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8080}
+      WAIT_FOR_MILVUS: ${WAIT_FOR_MILVUS:-true}
+      MILVUS_CONNECT_TIMEOUT_SEC: ${MILVUS_CONNECT_TIMEOUT_SEC:-180}
+      MILVUS_CONNECT_RETRY_INTERVAL_SEC: ${MILVUS_CONNECT_RETRY_INTERVAL_SEC:-2}
     volumes:
       - ./config:/app/config
       - ./database:/database
@@ -134,9 +145,9 @@ services:
       - ./ocr-bridge:/ocr-bridge
       - rag_storage:/storage
     ports:
-      - "8080:8080"
+      - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "${HOST_GATEWAY_NAME:-host.docker.internal}:${HOST_GATEWAY_IP:-host-gateway}"
     networks:
       - rag-network
     depends_on:
@@ -148,18 +159,18 @@ services:
   # ==================== 缓存服务 ====================
   # ==================== Ollama (本地 LLM) ====================
   ollama:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.9.0}
     container_name: ollama
     volumes:
       - ollama_data:/root/.ollama
     ports:
-      - "11434:11434"
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: ${OLLAMA_GPU_COUNT:-1}
               capabilities: [gpu]
     networks:
       - rag-network

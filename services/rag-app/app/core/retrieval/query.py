@@ -215,60 +215,6 @@ def soft_lock_confidence(
     }
 
 
-def post_recall_dynamic_source_lock(
-    query: str,
-    docs: List[Any],
-    route: str,
-    *,
-    top_n: int = 10,
-    qfilters: Optional[Dict[str, Any]] = None,
-    seed_anchor_terms_for_probe: Callable[[str], List[str]],
-    normalize_filename: Callable[[str], str],
-    hit_entity_source: Callable[[Any], str],
-    hit_display_text: Callable[[Any], str],
-    canonical_doc_id_for_source: Callable[[str], str],
-    query_anchor_terms: Callable[[str], List[str]],
-    normalize_query: Callable[[str], str],
-) -> Dict[str, Any]:
-    del qfilters
-    if route not in {"business_topic_qa", "open_regulation_qa", "content_qa"}:
-        return {"action": "none"}
-    if not seed_anchor_terms_for_probe(query):
-        return {"action": "none"}
-    window = [
-        doc
-        for doc in (docs or [])[: max(1, int(top_n))]
-        if normalize_filename(hit_entity_source(doc) or "")
-    ]
-    if len(window) < 3:
-        return {"action": "none"}
-    core_terms = [term for term in query_anchor_terms(query) if len(normalize_query(term)) >= 2][:4]
-    if core_terms:
-        hay = "\n".join(normalize_query(hit_display_text(doc) or "") for doc in window)
-        if not any(normalize_query(term) and normalize_query(term) in hay for term in core_terms):
-            return {"action": "none", "reason": "core_entity_not_covered", "core_terms": core_terms}
-    counts: Dict[str, int] = {}
-    representatives: Dict[str, str] = {}
-    for doc in window:
-        source = normalize_filename(hit_entity_source(doc) or "")
-        canonical_id = canonical_doc_id_for_source(source) or f"source:{source}"
-        counts[canonical_id] = counts.get(canonical_id, 0) + 1
-        representatives.setdefault(canonical_id, source)
-    if not counts:
-        return {"action": "none"}
-    top_source, top_count = max(counts.items(), key=lambda item: (item[1], item[0]))
-    share = float(top_count) / float(len(window))
-    ranked_sources = [
-        representatives.get(source, source)
-        for source, _ in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
-    ]
-    if share >= 0.9:
-        return {"action": "lock", "source": representatives.get(top_source, top_source), "share": share, "sources": ranked_sources}
-    if len(ranked_sources) >= 2 and share <= 0.7:
-        return {"action": "clarify", "share": share, "sources": ranked_sources[:3]}
-    return {"action": "none", "share": share, "sources": ranked_sources}
-
-
 def strip_compare_noise_terms(text: str, normalize_query: Callable[[str], str]) -> str:
     query = normalize_query(text)
     if not query:

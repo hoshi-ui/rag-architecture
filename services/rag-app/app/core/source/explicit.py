@@ -661,6 +661,7 @@ def resolve_dense_title_unique(
     *,
     min_sim: float,
     min_margin: float,
+    extra_margin: float = 0.05,
     resolve_prepared_candidates: Callable[[List[str], bool, str], Optional[Dict[str, Any]]],
 ) -> Optional[Dict[str, Any]]:
     if not dense_title_matches:
@@ -668,7 +669,7 @@ def resolve_dense_title_unique(
     top_match = dense_title_matches[0]
     top_score = float(top_match.get("score") or 0.0)
     second_score = float(dense_title_matches[1].get("score") or 0.0) if len(dense_title_matches) > 1 else 0.0
-    if not (top_score >= min_sim and (top_score - second_score >= min_margin or top_score >= min_sim + 0.05)):
+    if not (top_score >= min_sim and (top_score - second_score >= min_margin or top_score >= min_sim + float(extra_margin))):
         return None
     dense_resolution = resolve_prepared_candidates([str(top_match.get("source") or "")], True, "dense_title_match")
     if not dense_resolution:
@@ -702,6 +703,7 @@ def resolve_explicit_regulation_sources(
     normalize_filename: Callable[[str], str],
     dense_title_match_min_sim: float,
     dense_title_match_margin: float,
+    dense_title_extra_margin: float = 0.05,
     related_marker: str = "鐩稿叧",
 ) -> Dict[str, Any]:
     target_text = regulation_mentions[0] if regulation_mentions else ""
@@ -765,6 +767,7 @@ def resolve_explicit_regulation_sources(
         dense_title_source_matches(target_text, 5),
         min_sim=dense_title_match_min_sim,
         min_margin=dense_title_match_margin,
+        extra_margin=dense_title_extra_margin,
         resolve_prepared_candidates=resolve_prepared_candidates,
     )
     if dense_resolution:

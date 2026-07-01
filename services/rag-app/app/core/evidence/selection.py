@@ -178,11 +178,11 @@ def _apply_subject_focus_filter(
         base_score = float(adapter.hit_score(doc) or 0.0)
         focus_score = base_score
         if target_hits:
-            focus_score += min(0.18, 0.06 * float(target_hits))
+            focus_score += min(adapter.subject_focus_target_bonus_cap, adapter.subject_focus_target_hit_bonus * float(target_hits))
         if excluded_hits:
-            focus_score -= min(0.45, 0.18 * float(excluded_hits))
+            focus_score -= min(adapter.subject_focus_excluded_penalty_cap, adapter.subject_focus_excluded_hit_penalty * float(excluded_hits))
         if excluded_hits and not target_hits:
-            focus_score -= 0.12
+            focus_score -= adapter.subject_focus_unmatched_excluded_penalty
 
         scored.append((focus_score, -index, _clone_with_focus_score(doc, score_mode, focus_score)))
 

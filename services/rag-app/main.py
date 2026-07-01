@@ -51,5 +51,7 @@ __all__ = [
 if __name__ == "__main__":
     import uvicorn
 
+    host = os.getenv("APP_HOST", "0.0.0.0")
+    port = int(os.getenv("APP_PORT", "8080"))
     logger.info("Starting RAG Application...")
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host=host, port=port)

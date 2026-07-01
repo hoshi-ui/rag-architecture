@@ -243,6 +243,7 @@ def _adjust_clause_score(
     score: float,
     mentioned_articles: List[str],
     query_intent: str = "",
+    config: Any = None,
 ) -> Tuple[float, Dict[str, Any]]:
     heading_text = " ".join(part for part in [unit.heading, unit.chapter_title, unit.section_title] if part)
     heading_matches = _overlap(query, heading_text)
@@ -254,28 +255,28 @@ def _adjust_clause_score(
     adjusted = float(score)
     reasons: List[str] = []
     if exact_article_mentioned and unit.article_no and unit.article_no not in mentioned_articles:
-        adjusted -= 0.25
+        adjusted -= float(getattr(config, "CLAUSE_RERANK_NON_EXACT_ARTICLE_PENALTY", 0.25))
         reasons.append("non_exact_article_penalty")
     if heading_matches:
-        adjusted += 0.15
+        adjusted += float(getattr(config, "CLAUSE_RERANK_HEADING_MATCH_BONUS", 0.15))
         reasons.append("heading_match_bonus")
     if topic_matches:
-        adjusted += 0.15
+        adjusted += float(getattr(config, "CLAUSE_RERANK_TOPIC_MATCH_BONUS", 0.15))
         reasons.append("clause_topic_match_bonus")
     if normalized_query_intent and clause_intent == normalized_query_intent and clause_intent != "其他":
-        adjusted += 0.18
+        adjusted += float(getattr(config, "CLAUSE_RERANK_INTENT_MATCH_BONUS", 0.18))
         reasons.append("legal_intent_match_bonus")
     if normalized_query_intent == "法律责任" and any(term in heading_text for term in ("法律责任", "罚则")):
-        adjusted += 0.12
+        adjusted += float(getattr(config, "CLAUSE_RERANK_INTENT_HEADING_BONUS", 0.12))
         reasons.append("legal_responsibility_heading_bonus")
     if normalized_query_intent == "定义与范围" and article_number is not None and 1 <= article_number <= 3:
-        adjusted += 0.12
+        adjusted += float(getattr(config, "CLAUSE_RERANK_INTENT_HEADING_BONUS", 0.12))
         reasons.append("definition_scope_early_article_bonus")
     if normalized_query_intent == "职责与权限" and any(term in heading_text for term in ("职责", "权限", "职权", "机构职责")):
-        adjusted += 0.12
+        adjusted += float(getattr(config, "CLAUSE_RERANK_INTENT_HEADING_BONUS", 0.12))
         reasons.append("duty_authority_heading_bonus")
     if normalized_query_intent == "程序与条件" and any(term in heading_text for term in ("程序", "条件", "办理", "登记", "审查")):
-        adjusted += 0.12
+        adjusted += float(getattr(config, "CLAUSE_RERANK_INTENT_HEADING_BONUS", 0.12))
         reasons.append("procedure_condition_heading_bonus")
     if (
         exact_article_mentioned
@@ -284,7 +285,7 @@ def _adjust_clause_score(
         and (unit.prev_article_no in mentioned_articles or unit.next_article_no in mentioned_articles)
         and not heading_matches
     ):
-        adjusted -= 0.10
+        adjusted -= float(getattr(config, "CLAUSE_RERANK_NEIGHBOR_ARTICLE_PENALTY", 0.10))
         reasons.append("neighbor_without_heading_penalty")
     return adjusted, {
         "article_no": unit.article_no or "",
@@ -344,7 +345,14 @@ async def clause_level_rerank(
     ranked: List[Tuple[float, int, Dict[str, Any]]] = []
     adjustments: List[Dict[str, Any]] = []
     for idx, item in enumerate(clauses):
-        adjusted, trace = _adjust_clause_score(query, item["unit"], scores[idx], mentioned_articles, query_intent=query_intent)
+        adjusted, trace = _adjust_clause_score(
+            query,
+            item["unit"],
+            scores[idx],
+            mentioned_articles,
+            query_intent=query_intent,
+            config=getattr(runtime, "config", None),
+        )
         adjustments.append(trace)
         ranked.append((adjusted, idx, trace))
     ranked.sort(key=lambda item: item[0], reverse=True)

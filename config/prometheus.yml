@@ -3,23 +3,23 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  # RAG 搴旂敤鐩戞帶
+  # RAG 应用监控
   - job_name: 'rag-app'
     static_configs:
       - targets: ['rag-app:8080']
     metrics_path: '/metrics'
     
-  # Milvus 鐩戞帶
+  # Milvus 监控
   - job_name: 'milvus'
     static_configs:
       - targets: ['milvus:9091']
     
-  # Embedding 鏈嶅姟鐩戞帶
+  # Embedding 服务监控
   - job_name: 'embedding'
     static_configs:
       - targets: ['embedding-service:8000']
     
-  # Rerank 鏈嶅姟鐩戞帶
+  # Rerank 服务监控
   - job_name: 'rerank'
     static_configs:
       - targets: ['rerank-service:8000']

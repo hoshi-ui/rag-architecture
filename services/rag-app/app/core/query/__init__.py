@@ -29,9 +29,7 @@ from app.core.query.recall_flow import (
     compute_recall_window,
     build_multi_doc_compare_result,
     build_empty_search_result,
-    build_dynamic_lock_clarification_result,
     build_lightweight_recall_result,
-    apply_post_recall_dynamic_lock,
 )
 from app.core.query.recall_flow import (
     prepare_retrieve_query,
@@ -60,9 +58,7 @@ __all__ = [
     "compute_recall_window",
     "build_multi_doc_compare_result",
     "build_empty_search_result",
-    "build_dynamic_lock_clarification_result",
     "build_lightweight_recall_result",
-    "apply_post_recall_dynamic_lock",
     "prepare_retrieve_query",
     "build_retrieve_recall_blocked_result",
     "build_retrieve_soft_clarification_result",

@@ -115,6 +115,15 @@ def build_control_plane_metadata(
     extra: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     recall = dict(recall or {})
+    source_trace = dict(recall.get("source_resolution_trace") or {})
+    qfilters = dict(recall.get("qfilters") or {})
+    if qfilters.get("_hyde_used") and not source_trace.get("retrieval_hyde"):
+        source_trace["retrieval_hyde"] = {
+            "used": True,
+            "mode": str(qfilters.get("_hyde_mode") or ""),
+            "terms": list(qfilters.get("_hyde_terms") or []),
+            "query": str(qfilters.get("_hyde_query") or ""),
+        }
     normalized_targets = [
         normalize_filename(item)
         for item in (recall.get("target_sources") or fnames or [])
@@ -159,7 +168,7 @@ def build_control_plane_metadata(
         "lock_confidence": float(recall.get("lock_confidence") or 0.0),
         "lock_message_prefix": recall.get("lock_message_prefix") or "",
         "source_lock_kind": recall.get("source_lock_kind") or "",
-        "source_resolution_trace": dict(recall.get("source_resolution_trace") or {}),
+        "source_resolution_trace": source_trace,
         "inherited_from_context": bool(recall.get("inherited_from_context")),
         "intent_classification": dict(recall.get("intent_classification") or {}),
     }

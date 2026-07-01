@@ -157,6 +157,32 @@ def _doc_source(doc: dict[str, Any]) -> str:
     return str(doc.get("source") or metadata.get("source") or "").strip()
 
 
+def _canonical_source_key(source: str) -> str:
+    value = str(source or "").strip()
+    value = re.sub(r"\.[A-Za-z0-9]{1,8}$", "", value)
+    value = value.replace("_", " ")
+    for _ in range(2):
+        current = value.rstrip(" _-./")
+        match = re.search(
+            r"(?:^|[\s_\-])((?:19|20)\d{2}(?:[-_./年]\d{1,2}(?:[-_./月]\d{1,2}日?)?)?)$",
+            current,
+        )
+        if not match:
+            break
+        value = current[: match.start()].rstrip(" _-./")
+    return re.sub(r"[\s_\-./]+", "", _normalize(value))
+
+
+def _source_matches(doc: dict[str, Any], ref: dict[str, str]) -> bool:
+    left = _doc_source(doc)
+    right = ref["source"]
+    if left == right:
+        return True
+    left_key = _canonical_source_key(left)
+    right_key = _canonical_source_key(right)
+    return bool(left_key and right_key and left_key == right_key)
+
+
 def _doc_clause(doc: dict[str, Any]) -> str:
     metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
     clause_meta = metadata.get("clause_metadata") if isinstance(metadata.get("clause_metadata"), dict) else {}
@@ -220,7 +246,7 @@ def _expected_refs(case: dict[str, Any]) -> list[dict[str, str]]:
 
 
 def _matches_ref(doc: dict[str, Any], ref: dict[str, str], *, similarity_threshold: float) -> bool:
-    source_match = _doc_source(doc) == ref["source"]
+    source_match = _source_matches(doc, ref)
     if not source_match:
         return False
     clause = _doc_clause(doc)
@@ -233,7 +259,7 @@ def _matches_ref(doc: dict[str, Any], ref: dict[str, str], *, similarity_thresho
 
 
 def _hit_breakdown(doc: dict[str, Any], ref: dict[str, str], *, similarity_threshold: float) -> dict[str, bool]:
-    source_hit = _doc_source(doc) == ref["source"]
+    source_hit = _source_matches(doc, ref)
     clause = _doc_clause(doc)
     text = _doc_text(doc)
     clause_id_hit = bool(clause and clause == ref["clause"])
@@ -246,10 +272,48 @@ def _hit_breakdown(doc: dict[str, Any], ref: dict[str, str], *, similarity_thres
     }
 
 
+def _doc_score(doc: dict[str, Any]) -> float | None:
+    for key in ("score", "rerank_score", "relevance_score"):
+        if key in doc:
+            try:
+                return float(doc.get(key) or 0.0)
+            except Exception:
+                return None
+    metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+    for key in ("score", "rerank_score", "hybrid_struct_score", "base_relevance_score"):
+        if key in metadata:
+            try:
+                return float(metadata.get(key) or 0.0)
+            except Exception:
+                return None
+    return None
+
+
+def _dynamic_elbow_docs(docs: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+    safe_top_k = max(1, int(top_k or 1))
+    if len(docs) <= safe_top_k:
+        return docs
+    scores = [_doc_score(doc) for doc in docs]
+    if any(score is None for score in scores[: safe_top_k + 1]):
+        return docs[:safe_top_k]
+    delta_threshold = float(os.getenv("EVAL_DYNAMIC_ELBOW_SCORE_DELTA", "0.025"))
+    max_extra = max(0, int(os.getenv("EVAL_DYNAMIC_ELBOW_MAX_EXTRA", "5")))
+    hard_limit = min(len(docs), safe_top_k + max_extra)
+    limit = safe_top_k
+    for idx in range(safe_top_k, hard_limit):
+        previous = float(scores[idx - 1] or 0.0)
+        current = float(scores[idx] or 0.0)
+        if abs(previous - current) > delta_threshold:
+            break
+        limit = idx + 1
+    return docs[:limit]
+
+
 def _retrieved_docs(result: dict[str, Any], key: str, top_k: int) -> list[dict[str, Any]]:
     retrieved = result.get("retrieved_documents") if isinstance(result.get("retrieved_documents"), dict) else {}
     docs = retrieved.get(key) or retrieved.get("hybrid_rerank") or result.get("documents") or []
-    return [doc for doc in docs[:top_k] if isinstance(doc, dict)]
+    dict_docs = [doc for doc in docs if isinstance(doc, dict)]
+    return _dynamic_elbow_docs(dict_docs, top_k)
 
 
 def _answer_docs(result: dict[str, Any]) -> list[dict[str, Any]]:

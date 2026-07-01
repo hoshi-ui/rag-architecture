@@ -322,6 +322,7 @@ def resolve_unique_weak_match_upgrade(
     find_same_title_candidates: Callable[[str, str], List[str]],
     visible_document_exists: Callable[[str], bool],
     is_pseudo_singleton_soft_lock: Callable[[str, str], bool],
+    min_score: float = 0.70,
 ) -> Dict[str, Any]:
     candidates = collapse_sources_by_canonical(candidate_sources, 5)
     if len(candidates) != 1:
@@ -331,7 +332,7 @@ def resolve_unique_weak_match_upgrade(
     overlap = text_overlap_ratio(query, title, normalize_reference_text=normalize_reference_text)
     edit_sim = edit_similarity_ratio(query, title, normalize_reference_text=normalize_reference_text)
     score = max(overlap, edit_sim)
-    if score < 0.70:
+    if score < float(min_score):
         return {"resolved": False}
     same_title_candidates = find_same_title_candidates(title, source)
     visible_competitors = [item for item in same_title_candidates if visible_document_exists(item)]

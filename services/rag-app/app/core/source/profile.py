@@ -159,16 +159,23 @@ class SourceIdentityMixin:
             prior_value = 0.0
         score = 0.0
         if title_match:
-            score += 0.35
+            score += float(getattr(self.runtime.config, "SOURCE_LOCK_TITLE_MATCH_BONUS", 0.35))
         if "region_match" in reasons:
-            score += 0.25
+            score += float(getattr(self.runtime.config, "SOURCE_LOCK_REGION_MATCH_BONUS", 0.25))
         if anchors and anchor_hits >= required_hits:
-            score += 0.30
+            score += float(getattr(self.runtime.config, "SOURCE_LOCK_ANCHOR_MATCH_BONUS", 0.30))
         if prior_value > 0:
-            score += min(0.15, prior_value * 0.15)
+            score += min(
+                float(getattr(self.runtime.config, "SOURCE_LOCK_PRIOR_BONUS_CAP", 0.15)),
+                prior_value * float(getattr(self.runtime.config, "SOURCE_LOCK_PRIOR_BONUS_WEIGHT", 0.15)),
+            )
 
         exact_like = (match_kind or "").strip() in {"exact_title", "alias_title", "agentic_title_candidate", "agentic_strong_title"}
-        accepted = bool(title_match or (anchors and anchor_hits >= required_hits) or score >= 0.55)
+        accepted = bool(
+            title_match
+            or (anchors and anchor_hits >= required_hits)
+            or score >= float(getattr(self.runtime.config, "SOURCE_LOCK_MIN_ACCEPT_SCORE", 0.55))
+        )
         if exact_like and query_region and source_region and "region_match" in reasons:
             accepted = True
         if not accepted:
@@ -213,6 +220,7 @@ class SourceIdentityMixin:
             ),
             visible_document_exists=self.visible_document_exists,
             is_pseudo_singleton_soft_lock=self.is_pseudo_singleton_soft_lock,
+            min_score=float(getattr(self.runtime.config, "SOURCE_WEAK_MATCH_UPGRADE_MIN_SCORE", 0.70)),
         )
     def source_effective_rank(self, source: str) -> Tuple[int, int, int, int, str]:
         return source_resolution_core.source_effective_rank(
