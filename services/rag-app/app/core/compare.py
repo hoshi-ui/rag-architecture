@@ -827,11 +827,16 @@ def build_multi_doc_compare_grounded_answer(
     if len(source_refs) < 2:
         return "当前证据不足，无法完成两个文档之间的可靠对比。"
     focus_text = focus_text_fn(compare_plan)
-    lines = [f"围绕{focus_text}，两份资料的直接依据分别见 [{source_refs[0]['index']}][{source_refs[1]['index']}]。"]
+    def ref_label(ref: Dict[str, Any]) -> str:
+        return str(ref.get("local_ref") or ref.get("index") or "").strip()
+
+    first_ref = ref_label(source_refs[0])
+    second_ref = ref_label(source_refs[1])
+    lines = [f"围绕{focus_text}，两份资料的直接依据分别见 [{first_ref}][{second_ref}]。"]
     for ref in source_refs[:2]:
         section_text = f"{ref['section']}中" if ref.get("section") else "相关片段中"
         snippet = ref.get("snippet") or "未提供可展示片段"
-        lines.append(f"- {ref['title']}：{section_text}{snippet} [{ref['index']}]")
+        lines.append(f"- {ref['title']}：{section_text}{snippet} [{ref_label(ref)}]")
     return "\n".join(lines)
 
 

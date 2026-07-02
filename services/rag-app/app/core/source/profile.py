@@ -75,6 +75,50 @@ class SourceIdentityMixin:
             if hit:
                 matched += 1
         return matched
+
+    def _source_lock_region_key(self, value: str) -> str:
+        region = self.runtime.common.normalize_query(value)
+        if not region:
+            return ""
+        try:
+            return self.runtime.common.normalize_query(source_resolution_core.strip_region_admin_tokens(region))
+        except Exception:
+            return region
+
+    def _source_lock_requested_ext(self, *values: str) -> str:
+        text = " ".join(str(value or "") for value in values)
+        match = re.search(r"(?<![A-Za-z0-9])(pdf|docx|doc|xlsx|xls|txt|md|markdown|csv|json|log)(?![A-Za-z0-9])", text, flags=re.I)
+        return ("." + match.group(1).lower()) if match else ""
+
+    def _source_lock_source_ext(self, source: str, profile: Dict[str, Any]) -> str:
+        ext = str(profile.get("detected_ext") or "").strip().lower()
+        if ext and not ext.startswith("."):
+            ext = "." + ext
+        if ext:
+            return ext
+        match = re.search(r"\.(pdf|docx|doc|xlsx|xls|txt|md|markdown|csv|json|log)(?:$|[_\-.])", source or "", flags=re.I)
+        return ("." + match.group(1).lower()) if match else ""
+
+    def _source_lock_signature_terms(self, text: str) -> List[str]:
+        normalized = self.runtime.common.normalize_query(text)
+        signatures = [
+            "森林防火",
+            "防火",
+            "森林资源",
+            "使用林地",
+            "林地",
+            "出租房",
+            "养犬",
+            "物业",
+            "建筑市场",
+            "建设工程",
+            "建筑废弃物",
+            "非物质文化遗产",
+            "唐诗之路",
+            "水泥",
+        ]
+        return [term for term in signatures if term in normalized]
+
     def validate_source_lock_candidate(
         self,
         query: str,
@@ -101,7 +145,9 @@ class SourceIdentityMixin:
         )
 
         reasons: List[str] = []
-        if query_region and source_region and query_region not in source_region and source_region not in query_region:
+        query_region_key = self._source_lock_region_key(query_region)
+        source_region_key = self._source_lock_region_key(source_region)
+        if query_region_key and (not source_region_key or query_region_key != source_region_key):
             return {
                 "accepted": False,
                 "score": 0.0,
@@ -111,11 +157,40 @@ class SourceIdentityMixin:
                 "source_region": source_region,
             }
 
+        requested_ext = self._source_lock_requested_ext(normalized_query, normalized_target)
+        source_ext = self._source_lock_source_ext(safe_source, profile)
+        if requested_ext and source_ext and requested_ext != source_ext:
+            return {
+                "accepted": False,
+                "score": 0.0,
+                "reasons": [f"format_mismatch:{requested_ext}!={source_ext}"],
+                "hard_negative": True,
+                "query_region": query_region,
+                "source_region": source_region,
+                "requested_ext": requested_ext,
+                "source_ext": source_ext,
+            }
+
         hay_title = "\n".join(
             self.runtime.common.normalize_query(item)
             for item in [display_title, *(self.title_alias_candidates(safe_source) or [])]
             if self.runtime.common.normalize_query(item)
         )
+        missing_signature_terms = [
+            term
+            for term in self._source_lock_signature_terms(normalized_target)
+            if term not in hay_title
+        ]
+        if missing_signature_terms:
+            return {
+                "accepted": False,
+                "score": 0.0,
+                "reasons": ["signature_term_mismatch:" + ",".join(missing_signature_terms[:4])],
+                "hard_negative": True,
+                "query_region": query_region,
+                "source_region": source_region,
+                "missing_signature_terms": missing_signature_terms[:4],
+            }
         title_probe = self.runtime.common.normalize_query(f"{normalized_target} {normalized_query}")
         title_match = bool(
             hay_title
@@ -128,7 +203,7 @@ class SourceIdentityMixin:
         if title_match:
             reasons.append("title_or_alias_match")
 
-        if query_region and (not source_region or query_region in source_region or source_region in query_region):
+        if query_region_key and query_region_key == source_region_key:
             reasons.append("region_match")
 
         generic_terms = {
@@ -176,7 +251,7 @@ class SourceIdentityMixin:
             or (anchors and anchor_hits >= required_hits)
             or score >= float(getattr(self.runtime.config, "SOURCE_LOCK_MIN_ACCEPT_SCORE", 0.55))
         )
-        if exact_like and query_region and source_region and "region_match" in reasons:
+        if exact_like and query_region_key and source_region_key and "region_match" in reasons:
             accepted = True
         if not accepted:
             reasons.append("insufficient_source_lock_evidence")
@@ -245,6 +320,20 @@ class SourceIdentityMixin:
             normalize_filename=self.runtime.common.normalize_filename,
             prefer_latest_effective=self.prefer_latest_effective_sources,
             limit=limit,
+        )
+    def requested_source_constraints(self, query: str) -> Dict[str, Any]:
+        return source_resolution_core.requested_source_constraints(
+            query,
+            normalize_query=self.runtime.common.normalize_query,
+        )
+    def filter_sources_by_requested_constraints(self, sources: List[str], query: str) -> List[str]:
+        constraints = self.requested_source_constraints(query)
+        return source_resolution_core.filter_sources_by_requested_constraints(
+            sources,
+            constraints,
+            source_profile_fields=self.source_profile_fields,
+            source_display_title=self.display_title,
+            normalize_query=self.runtime.common.normalize_query,
         )
     def latest_effective_equivalent_source(self, source: str) -> str:
         safe_source = self.runtime.common.normalize_filename(source or "")

@@ -144,7 +144,25 @@ class SourceMatchMixin:
             allow_soft_lock: bool = False,
             trace_label: str = "",
         ) -> Optional[Dict[str, Any]]:
-            return source_resolution_core.resolve_prepared_regulation_candidates(
+            constraints = self.requested_source_constraints(query)
+            original_raw_candidates = [
+                runtime.common.normalize_filename(source or "")
+                for source in raw_candidates or []
+                if runtime.common.normalize_filename(source or "")
+            ]
+            raw_candidates = self.filter_sources_by_requested_constraints(original_raw_candidates, query)
+            if constraints.get("has_constraints") and original_raw_candidates and not raw_candidates:
+                not_found = source_resolution_core.document_not_found_result(regulation_mentions[0])
+                not_found["reason"] = "specified_version_or_format_not_found"
+                not_found["clarification"] = "未找到符合指定版本或格式的文件。"
+                not_found["source_resolution_trace"] = {
+                    "trace_label": trace_label,
+                    "hard_requested_source_constraints": constraints,
+                    "pre_filter_candidates": original_raw_candidates[:5],
+                    "post_filter_candidates": [],
+                }
+                return not_found
+            resolution = source_resolution_core.resolve_prepared_regulation_candidates(
                 raw_candidates,
                 query=query,
                 user_id=user_id,
@@ -164,6 +182,28 @@ class SourceMatchMixin:
                 build_document_clarification_prompt=self.clarification_prompt,
                 source_display_title=self.display_title,
             )
+            if resolution and resolution.get("resolved"):
+                rejected = []
+                for source in list(resolution.get("sources") or []):
+                    validation = self.validate_source_lock_candidate(
+                        query,
+                        regulation_mentions[0],
+                        source,
+                        prior=1.0 if not allow_soft_lock else 0.85,
+                        match_kind=trace_label or "explicit_regulation_candidate",
+                    )
+                    if not validation.get("accepted"):
+                        rejected.append({"source": source, "validation": validation})
+                if rejected:
+                    not_found = source_resolution_core.document_not_found_result(regulation_mentions[0])
+                    not_found["source_resolution_trace"] = {
+                        **dict((resolution or {}).get("source_resolution_trace") or {}),
+                        "hard_validation_failed": True,
+                        "rejected_sources": rejected[:5],
+                        "trace_label": trace_label,
+                    }
+                    return not_found
+            return resolution
 
         return source_resolution_core.resolve_explicit_regulation_sources(
             regulation_mentions,
@@ -289,6 +329,29 @@ class SourceTargetingMixin:
             [entry.get("source") for entry in title_matches if entry.get("source")],
             limit=max(1, int(self.runtime.common.policy_get("source_resolution.title_candidate_limit", 5))),
         )
+        constraints = self.requested_source_constraints(query)
+        if constraints.get("has_constraints") and title_sources:
+            pre_filter_title_sources = list(title_sources)
+            title_sources = self.filter_sources_by_requested_constraints(title_sources, query)
+            if not title_sources:
+                return self.build_source_resolution_result(
+                    route=route,
+                    required=True,
+                    resolved=False,
+                    sources=[],
+                    candidates=[],
+                    reason="specified_version_or_format_not_found",
+                    strip_title_mentions=False,
+                    clarification="未找到符合指定版本或格式的文件。",
+                    target_text=query,
+                    lock_mode="none",
+                    source_lock_kind="hard_requested_source_constraints",
+                    source_resolution_trace={
+                        "hard_requested_source_constraints": constraints,
+                        "pre_filter_candidates": pre_filter_title_sources[:5],
+                        "post_filter_candidates": [],
+                    },
+                )
         if len(title_sources) == 1:
             match_kind = str((title_matches[0] or {}).get("match_kind") or "title").strip()
             matched_text = str((title_matches[0] or {}).get("matched_text") or "").strip()
@@ -329,6 +392,28 @@ class SourceTargetingMixin:
             [item.get("source") for item in fallback if item.get("source")],
             limit=3,
         )
+        if constraints.get("has_constraints") and candidate_sources:
+            pre_filter_candidate_sources = list(candidate_sources)
+            candidate_sources = self.filter_sources_by_requested_constraints(candidate_sources, query)
+            if not candidate_sources:
+                return self.build_source_resolution_result(
+                    route=route,
+                    required=True,
+                    resolved=False,
+                    sources=[],
+                    candidates=[],
+                    reason="specified_version_or_format_not_found",
+                    strip_title_mentions=False,
+                    clarification="未找到符合指定版本或格式的文件。",
+                    target_text=query,
+                    lock_mode="none",
+                    source_lock_kind="hard_requested_source_constraints",
+                    source_resolution_trace={
+                        "hard_requested_source_constraints": constraints,
+                        "pre_filter_candidates": pre_filter_candidate_sources[:5],
+                        "post_filter_candidates": [],
+                    },
+                )
         if len(candidate_sources) == 1 and route in {"exact_title_reference", "alias_title_reference", "weak_title_reference"}:
             return self.build_source_resolution_result(
                 route=route,
@@ -414,6 +499,8 @@ class SourceTargetingMixin:
         missing_reasons = {
             "document_not_found",
             "document_target_required",
+            "missing_document_clarification",
+            "specified_version_or_format_not_found",
             "compare_target_not_found",
             "compare_targets_not_found",
             "agentic_router_targets_not_found",

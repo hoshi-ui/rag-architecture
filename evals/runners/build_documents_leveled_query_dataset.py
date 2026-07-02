@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import re
 from pathlib import Path
@@ -122,6 +123,50 @@ def make_case(
     }
 
 
+def make_negative_case(
+    case_id: str,
+    *,
+    subtype: str,
+    query: str,
+    expected_behavior: str,
+    expected_source_policy: str,
+    expected_answer: str,
+    expected_aspects: list[str],
+    must_not_use_sources: list[str] | None = None,
+    allowed_retrieval_sources: list[str] | None = None,
+    allow_knowledge_base_debunk: bool = False,
+    expected_no_retrieval: bool = True,
+    expected_signals: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": case_id,
+        "category": "negative_control",
+        "difficulty_category": "负向控制类",
+        "difficulty_level": "negative",
+        "subtype": subtype,
+        "query": query,
+        "expected_behavior": expected_behavior,
+        "expected_sources": [],
+        "expected_source_policy": expected_source_policy,
+        "expected_answer": expected_answer,
+        "expected_evidence": [],
+        "expected_aspects": expected_aspects,
+        "must_not_use_sources": must_not_use_sources or [],
+        "allowed_retrieval_sources": allowed_retrieval_sources or [],
+        "metric_focus": [
+            "negative_control_pass_rate",
+            "route_pass_rate",
+            "no_retrieval_pass_rate",
+            "no_wrong_source_pass_rate",
+        ],
+        "minimum_required_aspect_count": 2,
+        "negative_control": True,
+        "expected_signals": expected_signals or [],
+        "allow_knowledge_base_debunk": bool(allow_knowledge_base_debunk),
+        "expected_no_retrieval": bool(expected_no_retrieval),
+    }
+
+
 S = {
     "linzhi_rental": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
     "linzhi_legislation": "林芝市地方立法条例_2017-05-26_2017-05-26.pdf",
@@ -138,6 +183,123 @@ S = {
     "changchun_meat": "长春市肉品管理条例__.docx",
     "lingshui_ich": "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf",
 }
+
+
+def clone_case(base: dict[str, Any], case_id: str, subtype: str, query: str) -> dict[str, Any]:
+    item = copy.deepcopy(base)
+    item["id"] = case_id
+    item["subtype"] = subtype
+    item["query"] = query
+    return item
+
+
+def _first_evidence_label(case: dict[str, Any]) -> tuple[str, str]:
+    evidence_items = case.get("expected_evidence") if isinstance(case.get("expected_evidence"), list) else []
+    if not evidence_items:
+        return "", ""
+    first = evidence_items[0] if isinstance(evidence_items[0], dict) else {}
+    return str(first.get("title") or ""), str(first.get("clause") or "")
+
+
+def _extend_fact_cases(cases: list[dict[str, Any]]) -> None:
+    bases = [case for case in cases if case.get("id", "").startswith("DL-F")]
+    templates = [
+        ("focused_clause_rewrite", "只根据《{title}》{clause}，回答：{query}"),
+        ("citation_required_rewrite", "{query} 请同时给出对应条款依据。"),
+        ("key_points_rewrite", "请提炼《{title}》{clause}中与该问题直接相关的规则要点：{query}"),
+    ]
+    next_index = 11
+    for base in bases:
+        title, clause = _first_evidence_label(base)
+        for subtype_suffix, template in templates:
+            case_id = f"DL-F{next_index:03d}"
+            query = template.format(title=title, clause=clause, query=base["query"])
+            cases.append(clone_case(base, case_id, f"{base['subtype']}_{subtype_suffix}", query))
+            next_index += 1
+
+
+def _extend_logic_cases(cases: list[dict[str, Any]]) -> None:
+    bases = [case for case in cases if case.get("id", "").startswith("DL-L")]
+    templates = [
+        ("condition_first_rewrite", "请先判断适用条件，再回答：{query}"),
+        ("conclusion_and_basis_rewrite", "把结论和法规依据分开说明：{query}"),
+        ("scenario_reasoning_rewrite", "如果用户描述的事实前提成立，请按条款推导处理结果：{query}"),
+    ]
+    next_index = 11
+    for base in bases:
+        for subtype_suffix, template in templates:
+            case_id = f"DL-L{next_index:03d}"
+            query = template.format(query=base["query"])
+            cases.append(clone_case(base, case_id, f"{base['subtype']}_{subtype_suffix}", query))
+            next_index += 1
+
+
+def _extend_multi_cases(cases: list[dict[str, Any]]) -> None:
+    bases = [case for case in cases if case.get("id", "").startswith("DL-M")]
+    templates = [
+        ("grouped_sources_rewrite", "请按来源文件分组作答并比较差异：{query}"),
+        ("no_cross_citation_rewrite", "请分别引用每个目标文件，避免把不同文件条款混在一起：{query}"),
+    ]
+    next_index = 14
+    for base in bases:
+        for subtype_suffix, template in templates:
+            case_id = f"DL-M{next_index:03d}"
+            query = template.format(query=base["query"])
+            cases.append(clone_case(base, case_id, f"{base['subtype']}_{subtype_suffix}", query))
+            next_index += 1
+
+    fee_base = next(case for case in bases if case["id"] == "DL-M013")
+    cases.append(
+        clone_case(
+            fee_base,
+            "DL-M040",
+            f"{fee_base['subtype']}_matrix_rewrite",
+            "请按缴纳主体、收取主体、费用用途、减免条件四个维度，对比聊城养犬管理服务费和长春使用林地费用。",
+        )
+    )
+
+
+def _negative_rewrite_prefix(case: dict[str, Any], strict: bool = False) -> str:
+    behavior = str(case.get("expected_behavior") or "")
+    if strict:
+        if behavior == "ask_clarification":
+            return "严格禁止用全库检索猜测来源，只判断是否应当澄清："
+        if behavior == "evidence_insufficient":
+            return "严格拒绝越界法律推断，只依据目标法规判断是否证据不足："
+        return "请严格按文件名、地域、格式或版本匹配，不能用相似文件替代："
+    if behavior == "ask_clarification":
+        return "用户没有给出足够明确的文档来源，判断是否需要澄清："
+    if behavior == "evidence_insufficient":
+        return "不要引用无关法规，先判断证据是否足以回答："
+    return "请处理这个检索请求，找不到精确来源时必须拒绝替代作答："
+
+
+def _extend_negative_cases(cases: list[dict[str, Any]]) -> None:
+    bases = [case for case in cases if case.get("id", "").startswith("DL-N")]
+    next_index = 13
+    for base in bases:
+        case_id = f"DL-N{next_index:03d}"
+        query = f"{_negative_rewrite_prefix(base)}{base['query']}"
+        cases.append(clone_case(base, case_id, f"{base['subtype']}_guardrail_rewrite", query))
+        next_index += 1
+
+    for base in bases[:6]:
+        case_id = f"DL-N{next_index:03d}"
+        query = f"{_negative_rewrite_prefix(base, strict=True)}{base['query']}"
+        cases.append(clone_case(base, case_id, f"{base['subtype']}_strict_validation_rewrite", query))
+        next_index += 1
+
+
+def extend_to_150_cases(cases: list[dict[str, Any]]) -> None:
+    _extend_fact_cases(cases)
+    _extend_logic_cases(cases)
+    _extend_multi_cases(cases)
+    _extend_negative_cases(cases)
+    if len(cases) != 150:
+        raise AssertionError(f"Expected 150 cases after expansion, got {len(cases)}")
+    ids = [case["id"] for case in cases]
+    if len(ids) != len(set(ids)):
+        raise AssertionError("Duplicate case ids generated")
 
 
 def build_cases() -> list[dict[str, Any]]:
@@ -347,6 +509,30 @@ def build_cases() -> list[dict[str, Any]]:
             "应同时引用docx和pdf两个来源，并核对第五条核心内容：工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经责令限期整改后逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣资质证书，直至整改合格。若抽取文本有表格噪声，应说明以可识别条款内容为准。",
             ["docx来源", "pdf来源", "第五条核心处理一致性", "不得只引用其中一个同名文件"],
         ),
+        (
+            "DL-M011",
+            "cross_source_role_comparison_rewrite",
+            "分别列出林芝出租房安全管理条例和聊城市养犬管理条例中公安机关的职责，并说明两者职责重点有什么不同，引用不得交叉。",
+            [(S["linzhi_rental"], "第五条"), (S["liaocheng_dog"], "第五条")],
+            "林芝条例中公安机关负责出租房治安的统一监督管理；聊城条例中公安机关是养犬管理主管部门，负责犬只信息登记、签注、养犬信息系统、犬只收容救助场所管理，以及查处禁养限养、扰民、虐待遗弃、恐吓伤人等违法行为并组织捕捉流浪犬等。答案应体现两者一个偏出租房治安监督，一个偏犬只登记和养犬执法综合管理。",
+            ["林芝公安职责", "聊城公安主管部门定位", "聊城登记签注和系统职责", "聊城违法行为查处职责", "差异归纳"],
+        ),
+        (
+            "DL-M012",
+            "three_source_grassroots_duties_rewrite",
+            "林芝出租房、聊城养犬、绍兴物业三个法规里，基层组织或社区主体分别承担哪些协助、监督或纠纷处理职责？请按文件分组回答。",
+            [(S["linzhi_rental"], "第六条"), (S["liaocheng_dog"], "第六条"), (S["shaoxing_property"], "第六条")],
+            "应指出：林芝乡镇人民政府、街道办事处按属地管理做好出租房安全管理；聊城社区、居（村）民委员会、业主委员会协助宣传教育，可制定养犬公约、划定遛犬区域和时间并监督执行；绍兴居（村）民委员会指导监督业主大会和业主委员会，协助街道办事处、乡镇人民政府做好物业管理，引导业主参与，调解纠纷，协调物业管理与社区建设。",
+            ["林芝属地管理", "聊城社区和业委会养犬协助", "绍兴居村委物业协助", "基层治理差异"],
+        ),
+        (
+            "DL-M013",
+            "fee_comparison_rewrite",
+            "对比《聊城市养犬管理条例》的养犬管理服务费与《长春市森林资源管理条例》的使用林地费用：缴纳主体、收取主体、费用用途或减免条件分别是什么？",
+            [(S["liaocheng_dog"], "第二十条"), (S["changchun_forest"], "第二十九条")],
+            "聊城犬只信息登记、签注应向公安机关交纳养犬管理服务费，收费按有关规定报省有关部门批准后执行，并规定盲人饲养导盲犬、肢体重残人饲养扶助犬免交，凭绝育证明免交。长春经批准使用林地的单位和个人必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费，四项费用由县级以上林业行政主管部门收取，并对森林植被恢复费上缴比例及费用用途作出规定。",
+            ["聊城养犬服务费缴纳", "聊城免交情形", "长春林地四项费用", "长春收取主体", "费用用途或上缴规则"],
+        ),
     ]
     for case_id, subtype, query, refs, answer, aspects in multi_specs:
         cases.append(
@@ -363,6 +549,146 @@ def build_cases() -> list[dict[str, Any]]:
             )
         )
 
+    negative_specs = [
+        {
+            "case_id": "DL-N001",
+            "subtype": "nonexistent_region_title",
+            "query": "请回答《不存在的城市出租房安全管理条例》适用于哪些活动？",
+            "expected_behavior": "document_not_found",
+            "expected_source_policy": "not_found",
+            "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的出租房安全管理条例当作答案来源。",
+            "expected_aspects": ["识别文档缺失", "返回未找到", "不引用相似来源"],
+            "expected_signals": ["document_not_found", "not_found"],
+        },
+        {
+            "case_id": "DL-N002",
+            "subtype": "near_title_not_found",
+            "query": "《长春市森林防火管理条例》关于森林防火期如何规定？",
+            "expected_behavior": "document_not_found",
+            "expected_source_policy": "not_found",
+            "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的森林资源管理条例当作答案来源。",
+            "expected_aspects": ["识别文档缺失", "拒绝近似标题替代", "不引用森林资源管理条例"],
+            "must_not_use_sources": [S["changchun_forest"], "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"],
+            "expected_signals": ["document_not_found", "not_found"],
+        },
+        {
+            "case_id": "DL-N003",
+            "subtype": "ambiguous_article_without_source",
+            "query": "第五条规定了什么？",
+            "expected_behavior": "ask_clarification",
+            "expected_source_policy": "source_ambiguous",
+            "expected_answer": "应要求用户补充具体法规或文件名称，因为仅凭条号无法确定唯一来源。",
+            "expected_aspects": ["识别缺少具体文档", "要求补充法规名称", "不进入全库混合检索"],
+            "expected_signals": ["document_clarification", "document_ambiguous", "compare_clarification", "ambiguous"],
+        },
+        {
+            "case_id": "DL-N004",
+            "subtype": "ambiguous_short_alias",
+            "query": "深圳建筑相关条例第五条是什么？",
+            "expected_behavior": "ask_clarification",
+            "expected_source_policy": "source_ambiguous",
+            "expected_answer": "应要求用户明确具体法规文件，因为深圳建筑相关文件存在多份，不能任选其中一份作答。",
+            "expected_aspects": ["识别深圳建筑相关文件多义", "要求补充具体法规名称", "不任选单一来源回答"],
+            "must_not_use_sources": [S["sz_market_docx"], S["sz_market_pdf"], S["sz_quality"], S["sz_waste"]],
+            "expected_signals": ["document_clarification", "document_ambiguous", "compare_clarification", "ambiguous"],
+        },
+        {
+            "case_id": "DL-N005",
+            "subtype": "out_of_scope_law",
+            "query": "依据《林芝市出租房安全管理条例》，公司裁员补偿应如何计算？",
+            "expected_behavior": "evidence_insufficient",
+            "expected_source_policy": "evidence_insufficient",
+            "expected_answer": "应说明该问题超出出租房安全管理法规的调整范围，当前证据不足以回答劳动补偿问题。",
+            "expected_aspects": ["问题超出法规调整范围", "不能引用出租房条例回答劳动问题", "说明证据不足"],
+            "allowed_retrieval_sources": [S["linzhi_rental"]],
+            "allow_knowledge_base_debunk": True,
+            "expected_no_retrieval": False,
+            "expected_signals": ["refusal", "evidence_insufficient", "blocked", "out_of_scope"],
+        },
+        {
+            "case_id": "DL-N006",
+            "subtype": "missing_duplicate_format",
+            "query": "请查询《深圳市建筑市场严重违法行为特别处理规定》xlsx 版本第五条内容",
+            "expected_behavior": "document_not_found",
+            "expected_source_policy": "not_found",
+            "expected_answer": "应明确指定的 xlsx 版本不存在，不应自动回退到同名 docx 或 pdf 文件作答。",
+            "expected_aspects": ["指定的 xlsx 文件不存在", "不能回退 docx/pdf 版本", "返回文档未找到或澄清"],
+            "must_not_use_sources": [S["sz_market_docx"], S["sz_market_pdf"]],
+            "expected_signals": ["document_not_found", "not_found", "document_clarification"],
+        },
+        {
+            "case_id": "DL-N007",
+            "subtype": "nonexistent_region_title",
+            "query": "请回答《不存在的城市养犬管理条例》关于犬只登记有哪些要求？",
+            "expected_behavior": "document_not_found",
+            "expected_source_policy": "not_found",
+            "expected_answer": "应明确找不到指定城市的养犬管理条例，不应把聊城市养犬管理条例作为替代来源。",
+            "expected_aspects": ["识别地域前缀不存在", "返回文档未找到", "不引用聊城市养犬管理条例"],
+            "must_not_use_sources": [S["liaocheng_dog"]],
+            "expected_signals": ["document_not_found", "not_found"],
+        },
+        {
+            "case_id": "DL-N008",
+            "subtype": "business_term_collision",
+            "query": "《长春市森林防火条例》第十五条是什么？",
+            "expected_behavior": "document_not_found",
+            "expected_source_policy": "not_found",
+            "expected_answer": "应明确找不到指定的森林防火条例，不能把森林资源管理条例作为近似来源回答。",
+            "expected_aspects": ["识别森林防火与森林资源不是同一文件", "返回文档未找到", "不引用长春市森林资源管理条例"],
+            "must_not_use_sources": [S["changchun_forest"], "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"],
+            "expected_signals": ["document_not_found", "not_found"],
+        },
+        {
+            "case_id": "DL-N009",
+            "subtype": "bare_article_without_source",
+            "query": "第二十条规定了什么？",
+            "expected_behavior": "ask_clarification",
+            "expected_source_policy": "source_ambiguous",
+            "expected_answer": "应要求用户补充具体法规或文件名称，因为仅凭第二十条无法确定唯一来源。",
+            "expected_aspects": ["识别缺少具体文档", "要求补充法规名称", "不进入全库混合检索"],
+            "expected_signals": ["document_clarification", "document_ambiguous", "compare_clarification", "ambiguous"],
+        },
+        {
+            "case_id": "DL-N010",
+            "subtype": "missing_duplicate_format",
+            "query": "请查询《聊城市养犬管理条例》xlsx 版本第二十条内容",
+            "expected_behavior": "document_not_found",
+            "expected_source_policy": "not_found",
+            "expected_answer": "应明确指定的 xlsx 版本不存在，不应自动回退到同名 docx 文件作答。",
+            "expected_aspects": ["指定的 xlsx 文件不存在", "不能回退 docx 版本", "返回文档未找到或澄清"],
+            "must_not_use_sources": [S["liaocheng_dog"]],
+            "expected_signals": ["document_not_found", "not_found", "document_clarification"],
+        },
+        {
+            "case_id": "DL-N011",
+            "subtype": "out_of_scope_law",
+            "query": "依据《聊城市养犬管理条例》，员工离职经济补偿怎么计算？",
+            "expected_behavior": "evidence_insufficient",
+            "expected_source_policy": "evidence_insufficient",
+            "expected_answer": "应说明该问题超出养犬管理法规的调整范围，当前证据不足以回答劳动经济补偿问题。",
+            "expected_aspects": ["问题超出法规调整范围", "不能引用养犬条例回答劳动问题", "说明证据不足"],
+            "allowed_retrieval_sources": [S["liaocheng_dog"]],
+            "allow_knowledge_base_debunk": True,
+            "expected_no_retrieval": False,
+            "expected_signals": ["refusal", "evidence_insufficient", "blocked", "out_of_scope"],
+        },
+        {
+            "case_id": "DL-N012",
+            "subtype": "missing_specific_version_year",
+            "query": "请查询《长春市森林资源管理条例》2019 年版本第十五条内容",
+            "expected_behavior": "document_not_found",
+            "expected_source_policy": "not_found",
+            "expected_answer": "应明确未找到指定的 2019 年版本，不能回退到 2024 或 2004 年版本作答。",
+            "expected_aspects": ["指定年份版本不存在", "不能回退其他年份版本", "返回文档未找到或澄清"],
+            "must_not_use_sources": [S["changchun_forest"], "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"],
+            "expected_signals": ["document_not_found", "not_found", "document_clarification"],
+        },
+    ]
+    for spec in negative_specs:
+        cases.append(make_negative_case(**spec))
+
+    extend_to_150_cases(cases)
+
     return cases
 
 
@@ -370,15 +696,16 @@ def main() -> None:
     cases = build_cases()
     suite = {
         "suite_name": "documents_leveled_query_dataset",
-        "schema_version": "0.1",
+        "schema_version": "0.2",
         "created_for": "基于 documents 目录法规文档构建的分级分类 RAG Query 测试集",
         "source_documents_dir": str(ROOT / "documents"),
         "source_markdown_cache_dir": str(TEXT_CACHE_DIR),
-        "description": "将 Query 按难度分为事实检索类、逻辑推理类、多文档综合类；每条包含期望来源、证据条款、期望答案要点与评测关注指标。",
+        "description": "将 Query 按难度分为事实检索类、逻辑推理类、多文档综合类；每条包含期望来源、证据条款、期望答案要点与评测关注指标。同时包含负向控制用例，用于验证缺失文档、歧义来源、越界问题和错误格式处理能力。",
         "difficulty_buckets": [
-            {"name": "事实检索类", "difficulty_level": "easy", "case_count": 10},
-            {"name": "逻辑推理类", "difficulty_level": "medium", "case_count": 10},
-            {"name": "多文档综合类", "difficulty_level": "hard", "case_count": 10},
+            {"name": "事实检索类", "difficulty_level": "easy", "case_count": 40},
+            {"name": "逻辑推理类", "difficulty_level": "medium", "case_count": 40},
+            {"name": "多文档综合类", "difficulty_level": "hard", "case_count": 40},
+            {"name": "负向控制类", "difficulty_level": "negative", "case_count": 30},
         ],
         "global_metrics": [
             "source_lock_accuracy",
@@ -388,6 +715,10 @@ def main() -> None:
             "aspect_coverage",
             "wrong_source_rate",
             "unsupported_claim_rate",
+            "negative_control_pass_rate",
+            "route_pass_rate",
+            "no_retrieval_pass_rate",
+            "no_wrong_source_pass_rate",
         ],
         "case_count": len(cases),
         "cases": cases,

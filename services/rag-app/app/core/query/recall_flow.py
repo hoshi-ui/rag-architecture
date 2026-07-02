@@ -133,6 +133,8 @@ HARD_SOURCE_NOT_FOUND_REASONS = {
     "document_not_found",
     "explicit_document_not_found",
     "explicit_filename_not_found",
+    "missing_document_clarification",
+    "specified_version_or_format_not_found",
 }
 
 
@@ -664,6 +666,9 @@ def build_multi_doc_compare_result(
 ) -> Dict[str, Any]:
     compare_final_n = max(final_n * max(1, len(compare_sources)), final_n)
     min_required_per_doc = _compare_min_required_per_doc(runtime)
+    group_count = max(1, len(compare_sources or []))
+    fixed_per_source = max(2, min_required_per_doc, (max(1, int(final_n or 1)) + group_count - 1) // group_count)
+    fixed_total_limit = fixed_per_source * group_count
     compare_coverage = build_compare_coverage_trace(
         compare_sources,
         compare_source_results,
@@ -692,8 +697,8 @@ def build_multi_doc_compare_result(
         "is_comparison": bool(is_comparison),
         "question_type": qtype,
         "score_mode": next((item.get("score_mode") for item in compare_source_results if item.get("score_mode")), "score"),
-        "docs": runtime.evidence.merge_compare_source_doc_groups(docs_groups, per_source_limit=max(min_required_per_doc, requested_k)),
-        "selected_docs": runtime.evidence.merge_compare_source_doc_groups(selected_groups, per_source_limit=max(min_required_per_doc, final_n)),
+        "docs": runtime.evidence.merge_compare_source_doc_groups_fixed_budget(docs_groups, total_limit=fixed_total_limit, min_per_source=fixed_per_source),
+        "selected_docs": runtime.evidence.merge_compare_source_doc_groups_fixed_budget(selected_groups, total_limit=fixed_total_limit, min_per_source=fixed_per_source),
         "qfilters": qfilters,
         "recall_k": recall_k,
         "final_n": compare_final_n,
@@ -707,8 +712,8 @@ def build_multi_doc_compare_result(
             for item in compare_source_results
             for key, value in (item.get("dense_source_scores") or {}).items()
         },
-        "post_filter_docs": runtime.evidence.merge_compare_source_doc_groups(post_filter_groups, per_source_limit=max(min_required_per_doc, final_n)),
-        "retrieve_docs": runtime.evidence.merge_compare_source_doc_groups(retrieve_groups, per_source_limit=max(min_required_per_doc, requested_k)),
+        "post_filter_docs": runtime.evidence.merge_compare_source_doc_groups_fixed_budget(post_filter_groups, total_limit=fixed_total_limit, min_per_source=fixed_per_source),
+        "retrieve_docs": runtime.evidence.merge_compare_source_doc_groups_fixed_budget(retrieve_groups, total_limit=fixed_total_limit, min_per_source=fixed_per_source),
         "source_lock_required": False,
         "resolved_source_lock": True,
         "target_sources": compare_sources,
@@ -724,6 +729,8 @@ def build_multi_doc_compare_result(
         "compare_canonical_aspects": list(source_resolution.get("compare_canonical_aspects") or []),
         "compare_expanded_aspects": list(source_resolution.get("compare_expanded_aspects") or []),
         "compare_source_subqueries": compare_subqueries,
+        "compare_fixed_per_source": fixed_per_source,
+        "compare_fixed_total_limit": fixed_total_limit,
         "compare_status": source_resolution.get("compare_status") or compare_plan.get("compare_status") or "plan_ready",
         "compare_plan": compare_plan,
         "compare_coverage": compare_coverage,

@@ -13,6 +13,52 @@ from app.core.evidence.hits import (
 from app.documents import chunking as document_chunking
 
 
+_ARTICLE_NUMERAL_CHARS = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u96f6\u3007\u4e24\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u73960-9\uff10-\uff19"
+_ARTICLE_RE = re.compile(rf"(?:第\s*)?[{_ARTICLE_NUMERAL_CHARS}\s]+条")
+_ARTICLE_EXACT_RE = re.compile(rf"^(?:第)?[{_ARTICLE_NUMERAL_CHARS}]+条$")
+
+
+def _normalize_article_label(value: Any) -> str:
+    text = re.sub(r"\s+", "", str(value or "").strip()).translate(str.maketrans("０１２３４５６７８９", "0123456789"))
+    if not text or len(text) > 16:
+        return ""
+    if text and not text.startswith("第") and text.endswith("条"):
+        text = "第" + text
+    return text if _ARTICLE_EXACT_RE.match(text) else ""
+
+
+def _article_ids_from_query_text(value: Any) -> List[str]:
+    out: List[str] = []
+    for match in _ARTICLE_RE.finditer(str(value or "")):
+        normalized = _normalize_article_label(match.group(0))
+        if normalized and normalized not in out:
+            out.append(normalized)
+    return out
+
+
+def _configured_article_ids(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        for key in ("article_id", "article_no", "value", "name", "text"):
+            if value.get(key):
+                return _configured_article_ids(value.get(key))
+        return []
+    if isinstance(value, (list, tuple, set)):
+        out: List[str] = []
+        for item in value:
+            for normalized in _configured_article_ids(item):
+                if normalized not in out:
+                    out.append(normalized)
+        return out
+    out: List[str] = []
+    for item in re.split(r"[,，、；;\s]+", str(value or "").strip()):
+        normalized = _normalize_article_label(item)
+        if normalized and normalized not in out:
+            out.append(normalized)
+    return out
+
+
 def _retrieve_output_key(doc: Any) -> Tuple[Any, ...]:
     metadata = hit_metadata(doc)
     source = str(hit_entity_source(doc) or "").strip()
@@ -211,6 +257,76 @@ def dedupe_evidence_docs(runtime: Any, docs: List[Any], limit: int) -> List[Any]
     return out
 
 
+def _hit_article_id(adapter: Any, doc: Any) -> str:
+    metadata = adapter.hit_metadata(doc)
+    return document_chunking.extract_article_id(
+        metadata.get("article_id"),
+        metadata.get("article_no"),
+        metadata.get("clause_label"),
+        adapter.hit_display_text(doc),
+        hit_entity_text(doc),
+    )
+
+
+def _clone_with_article_pin_score(adapter: Any, doc: Any, article_id: str, rank: int, bonus: float) -> Any:
+    if not isinstance(doc, dict):
+        return doc
+    out = dict(doc)
+    entity = dict(out.get("entity") or {})
+    metadata = dict(entity.get("metadata") or {})
+    metadata["article_pin_match"] = True
+    metadata["article_pin_article_id"] = article_id
+    metadata["article_pin_rank"] = int(rank)
+    entity["metadata"] = metadata
+    out["entity"] = entity
+    out.pop("distance", None)
+    out["score"] = max(float(adapter.hit_score(doc) or 0.0), 0.0) + float(bonus)
+    return out
+
+
+def pin_article_hits(
+    runtime: Any,
+    query: str,
+    docs: List[Any],
+    *,
+    qfilters: Optional[Dict[str, Any]] = None,
+    article_ids: Optional[List[str]] = None,
+    absolute_bonus: float = 1_000_000.0,
+) -> List[Any]:
+    adapter = _evidence_context(runtime)
+    qfilters = qfilters or {}
+    wanted: List[str] = []
+    for value in [
+        article_ids or [],
+        qfilters.get("target_articles"),
+        qfilters.get("target_article"),
+        qfilters.get("article_ids"),
+        qfilters.get("article_id"),
+    ]:
+        for normalized in _configured_article_ids(value):
+            if normalized not in wanted:
+                wanted.append(normalized)
+    if not qfilters.get("_skip_article_id_filter"):
+        for normalized in _article_ids_from_query_text(query):
+            if normalized not in wanted:
+                wanted.append(normalized)
+    if not wanted or not docs:
+        return docs
+
+    wanted_set = set(wanted)
+    pinned: List[Any] = []
+    rest: List[Any] = []
+    for doc in docs or []:
+        article_id = _hit_article_id(adapter, doc)
+        if article_id in wanted_set:
+            pinned.append(_clone_with_article_pin_score(adapter, doc, article_id, len(pinned) + 1, absolute_bonus))
+        else:
+            rest.append(doc)
+    if not pinned:
+        return docs
+    return dedupe_evidence_docs(runtime, pinned + rest, len(pinned) + len(rest))
+
+
 def merge_compare_source_doc_groups(runtime: Any, source_groups: List[Dict[str, Any]], per_source_limit: int) -> List[Any]:
     merged: List[Any] = []
     seen_keys = set()
@@ -231,6 +347,28 @@ def merge_compare_source_doc_groups(runtime: Any, source_groups: List[Dict[str, 
             seen_keys.add(key)
             merged.append(doc)
     return merged
+
+
+def merge_compare_source_doc_groups_fixed_budget(
+    runtime: Any,
+    source_groups: List[Dict[str, Any]],
+    total_limit: int,
+    *,
+    min_per_source: int = 1,
+) -> List[Any]:
+    active_groups = [group for group in (source_groups or []) if group.get("docs")]
+    if not active_groups:
+        return []
+    group_count = len(active_groups)
+    min_each = max(1, int(min_per_source or 1))
+    total = max(group_count * min_each, int(total_limit or 0))
+    base = max(min_each, total // group_count)
+    remainder = max(0, total - (base * group_count))
+    limited_groups: List[Dict[str, Any]] = []
+    for index, group in enumerate(active_groups):
+        quota = base + (1 if index < remainder else 0)
+        limited_groups.append({**group, "docs": list(group.get("docs") or [])[:quota]})
+    return merge_compare_source_doc_groups(runtime, limited_groups, per_source_limit=base + 1)
 
 
 def _score_field_for_hit(hit: Any) -> Tuple[str, float]:

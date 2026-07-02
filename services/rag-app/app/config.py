@@ -297,7 +297,7 @@ class Config:
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))
     OVERLAP = int(os.getenv("OVERLAP", "100"))
     TOP_K = int(os.getenv("TOP_K", "80"))
-    RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "10"))
+    RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "40"))
     ENABLE_RERANK = os.getenv("ENABLE_RERANK", "true").lower() == "true"
     MIN_QUERY_CHARS = int(os.getenv("MIN_QUERY_CHARS", "2"))
     MAX_QUERY_CHARS = int(os.getenv("MAX_QUERY_CHARS", "800"))

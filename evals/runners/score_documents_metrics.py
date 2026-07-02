@@ -311,7 +311,7 @@ def _dynamic_elbow_docs(docs: list[dict[str, Any]], top_k: int) -> list[dict[str
 
 def _retrieved_docs(result: dict[str, Any], key: str, top_k: int) -> list[dict[str, Any]]:
     retrieved = result.get("retrieved_documents") if isinstance(result.get("retrieved_documents"), dict) else {}
-    docs = retrieved.get(key) or retrieved.get("hybrid_rerank") or result.get("documents") or []
+    docs = retrieved.get(key) or retrieved.get("hybrid_rerank") or result.get("retrieved_contexts") or result.get("documents") or []
     dict_docs = [doc for doc in docs if isinstance(doc, dict)]
     return _dynamic_elbow_docs(dict_docs, top_k)
 
@@ -550,30 +550,66 @@ def _score_negative_control(case: dict[str, Any], result: dict[str, Any], *, top
 
     behavior = str(case.get("expected_behavior") or "").strip()
     policy = str(case.get("expected_source_policy") or "").strip()
+    allow_kb_debunk = bool(case.get("allow_knowledge_base_debunk") or case.get("allow_retrieval_for_evidence_insufficient"))
     no_retrieval_expected = bool(
         case.get("expected_no_retrieval", behavior in {"document_not_found", "ask_clarification", "source_ambiguous"} or policy in {"not_found", "document_not_found", "ambiguous", "source_ambiguous"})
     )
     no_retrieval_pass = (len(all_docs) == 0) if no_retrieval_expected else True
     forbidden_sources = set(str(item or "").strip() for item in case.get("must_not_use_sources") or [] if str(item or "").strip())
-    no_wrong_source_pass = not bool(forbidden_sources & sources)
+    allowed_sources = set(str(item or "").strip() for item in case.get("allowed_retrieval_sources") or [] if str(item or "").strip())
+
+    def source_name_matches(source: str, candidates: set[str]) -> bool:
+        if source in candidates:
+            return True
+        source_key = _canonical_source_key(source)
+        return bool(source_key and any(source_key == _canonical_source_key(candidate) for candidate in candidates))
+
+    no_forbidden_source = not any(source_name_matches(source, forbidden_sources) for source in sources)
+    allowed_source_pass = all(source_name_matches(source, allowed_sources) for source in sources) if allowed_sources else True
+    no_wrong_source_pass = bool(no_forbidden_source and allowed_source_pass)
     answer = str(result.get("actual_answer") or result.get("answer") or "")
     answer_n = _normalize(answer)
-    fallback_terms = ["找不到", "未找到", "不存在", "无法", "不能确定", "请明确", "请提供", "未检索到", "证据不足", "不在已上传"]
+    fallback_terms = [
+        "找不到",
+        "未找到",
+        "不存在",
+        "无法",
+        "不能确定",
+        "请明确",
+        "请提供",
+        "未检索到",
+        "证据不足",
+        "不在已上传",
+        "不覆盖",
+        "未覆盖",
+        "不包含",
+        "未包含",
+        "不涉及",
+        "未涉及",
+        "未规定",
+        "没有规定",
+        "超出",
+        "不属于",
+    ]
     answer_signal_pass = _contains_any(answer_n, fallback_terms)
-    pass_value = bool(route_pass and no_retrieval_pass and no_wrong_source_pass)
+    route_or_answer_pass = bool(route_pass or (allow_kb_debunk and answer_signal_pass))
+    pass_value = bool(route_or_answer_pass and no_retrieval_pass and no_wrong_source_pass)
     return {
         "negative_control": True,
         "negative_control_pass": pass_value,
         "negative_control_score": 1.0 if pass_value else 0.0,
         "route_pass": route_pass,
+        "route_or_answer_pass": route_or_answer_pass,
         "no_retrieval_pass": no_retrieval_pass,
         "no_wrong_source_pass": no_wrong_source_pass,
         "answer_signal_pass": answer_signal_pass,
+        "allow_knowledge_base_debunk": allow_kb_debunk,
         "expected_signals": sorted(expected_signals),
         "actual_signals": sorted(actual_signals),
         "retrieved_count": len(all_docs),
         "retrieved_sources": sorted(sources),
         "forbidden_sources": sorted(forbidden_sources),
+        "allowed_retrieval_sources": sorted(allowed_sources),
     }
 
 
@@ -697,6 +733,7 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "cases": len(negative_rows),
             "pass_rate": _mean(values(("negative_control", "negative_control_score"))),
             "route_pass_rate": _mean([1.0 if (row.get("negative_control") or {}).get("route_pass") else 0.0 for row in negative_rows]),
+            "route_or_answer_pass_rate": _mean([1.0 if (row.get("negative_control") or {}).get("route_or_answer_pass") else 0.0 for row in negative_rows]),
             "no_retrieval_pass_rate": _mean([1.0 if (row.get("negative_control") or {}).get("no_retrieval_pass") else 0.0 for row in negative_rows]),
             "no_wrong_source_pass_rate": _mean([1.0 if (row.get("negative_control") or {}).get("no_wrong_source_pass") else 0.0 for row in negative_rows]),
             "answer_signal_pass_rate": _mean([1.0 if (row.get("negative_control") or {}).get("answer_signal_pass") else 0.0 for row in negative_rows]),

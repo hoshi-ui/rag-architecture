@@ -34,6 +34,14 @@ QUERY_INTENT_PREFIX_RE = (
 )
 DATE_TOKEN_RE = re.compile(r"\d{4}(?:(?:[-_./]|\u5e74)\d{1,2}(?:(?:[-_./]|\u6708)\d{1,2}\u65e5?)?)?")
 SOURCE_DATE_TOKEN_RE = re.compile(r"(20\d{2}|19\d{2})[-_./](\d{1,2})[-_./](\d{1,2})")
+REQUESTED_FORMAT_RE = re.compile(
+    r"(?<![A-Za-z0-9])\.?(pdf|docx|doc|xlsx|xls|txt|md|markdown|csv|json|log)(?![A-Za-z0-9])",
+    flags=re.I,
+)
+REQUESTED_VERSION_YEAR_RE = re.compile(
+    r"(?<!\d)((?:19|20)\d{2})(?:\s*(?:版|版本|年版|修订|修正版|发布|实施|生效|有效)|[-_./年])"
+)
+REQUESTED_FULL_DATE_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})[-_./年](\d{1,2})(?:[-_./月](\d{1,2})日?)?")
 
 
 def looks_like_legal_title_reference(text: str, *, normalize_query: Callable[[str], str]) -> bool:
@@ -129,6 +137,112 @@ def _sortable_date_from_text(text: str) -> int:
             continue
         best = max(best, value)
     return best
+
+
+def requested_source_constraints(query: str, *, normalize_query: Callable[[str], str]) -> Dict[str, Any]:
+    normalized = normalize_query(query)
+    requested_exts: List[str] = []
+    for match in REQUESTED_FORMAT_RE.finditer(str(query or "")):
+        token = "." + match.group(1).lower()
+        if token == ".markdown":
+            token = ".md"
+        if token not in requested_exts:
+            requested_exts.append(token)
+    years: List[str] = []
+    for year in REQUESTED_VERSION_YEAR_RE.findall(normalized):
+        if year not in years:
+            years.append(year)
+    date_tokens: List[str] = []
+    for year, month, day in REQUESTED_FULL_DATE_RE.findall(normalized):
+        token = f"{int(year):04d}{int(month):02d}"
+        if day:
+            token += f"{int(day):02d}"
+        if token not in date_tokens:
+            date_tokens.append(token)
+    return {
+        "requested_exts": requested_exts,
+        "requested_years": years,
+        "requested_date_tokens": date_tokens,
+        "has_constraints": bool(requested_exts or years or date_tokens),
+    }
+
+
+def _source_ext(source: str, profile: Dict[str, Any]) -> str:
+    ext = str((profile or {}).get("detected_ext") or "").strip().lower()
+    if ext and not ext.startswith("."):
+        ext = "." + ext
+    if ext == ".markdown":
+        ext = ".md"
+    if ext:
+        return ext
+    match = re.search(r"\.(pdf|docx|doc|xlsx|xls|txt|md|markdown|csv|json|log)(?:$|[_\-.])", source or "", flags=re.I)
+    if not match:
+        return ""
+    ext = "." + match.group(1).lower()
+    return ".md" if ext == ".markdown" else ext
+
+
+def source_matches_requested_constraints(
+    source: str,
+    constraints: Dict[str, Any],
+    *,
+    source_profile_fields: Callable[[str], Dict[str, Any]],
+    source_display_title: Callable[[str], str],
+    normalize_query: Callable[[str], str],
+) -> bool:
+    if not (constraints or {}).get("has_constraints"):
+        return True
+    profile = source_profile_fields(source) or {}
+    requested_exts = list((constraints or {}).get("requested_exts") or [])
+    if requested_exts:
+        ext = _source_ext(source, profile)
+        if not ext or ext not in requested_exts:
+            return False
+    requested_years = list((constraints or {}).get("requested_years") or [])
+    requested_date_tokens = list((constraints or {}).get("requested_date_tokens") or [])
+    if requested_years or requested_date_tokens:
+        raw_haystack = " ".join(
+            str(value or "")
+            for value in (
+                source,
+                source_display_title(source),
+                profile.get("original_filename"),
+                profile.get("canonical_title"),
+                profile.get("publish_date"),
+                profile.get("effective_date"),
+                profile.get("doc_version_label"),
+            )
+        )
+        haystack = normalize_query(raw_haystack)
+        if not all(year in haystack for year in requested_years):
+            return False
+        digits = re.sub(r"\D", "", raw_haystack)
+        if not all(token in digits for token in requested_date_tokens):
+            return False
+    return True
+
+
+def filter_sources_by_requested_constraints(
+    sources: List[str],
+    constraints: Dict[str, Any],
+    *,
+    source_profile_fields: Callable[[str], Dict[str, Any]],
+    source_display_title: Callable[[str], str],
+    normalize_query: Callable[[str], str],
+) -> List[str]:
+    if not (constraints or {}).get("has_constraints"):
+        return list(sources or [])
+    out: List[str] = []
+    for source in sources or []:
+        if source_matches_requested_constraints(
+            source,
+            constraints,
+            source_profile_fields=source_profile_fields,
+            source_display_title=source_display_title,
+            normalize_query=normalize_query,
+        ):
+            out.append(source)
+    return out
 
 
 def source_effective_rank(

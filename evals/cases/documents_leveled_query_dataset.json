@@ -9,22 +9,22 @@
     {
       "name": "事实检索类",
       "difficulty_level": "easy",
-      "case_count": 10
+      "case_count": 40
     },
     {
       "name": "逻辑推理类",
       "difficulty_level": "medium",
-      "case_count": 10
+      "case_count": 40
     },
     {
       "name": "多文档综合类",
       "difficulty_level": "hard",
-      "case_count": 10
+      "case_count": 40
     },
     {
       "name": "负向控制类",
       "difficulty_level": "negative",
-      "case_count": 6
+      "case_count": 30
     }
   ],
   "global_metrics": [
@@ -40,7 +40,7 @@
     "no_retrieval_pass_rate",
     "no_wrong_source_pass_rate"
   ],
-  "case_count": 36,
+  "case_count": 150,
   "cases": [
     {
       "id": "DL-F001",
@@ -1216,27 +1216,33 @@
       "difficulty_category": "多文档综合类",
       "difficulty_level": "hard",
       "subtype": "duplicate_source_compare",
-      "query": "《深圳市建筑市场严重违法行为特别处理规定》第五条关于事故隐患整改不合格的处理是怎么规定的？",
+      "query": "同名的《深圳市建筑市场严重违法行为特别处理规定》docx 和 pdf 两个文件中，第五条关于事故隐患整改不合格的处理是否一致？请分别引用两个文件。",
       "expected_behavior": "answer_with_citations",
       "expected_sources": [
-        "深圳市建筑市场严重违法行为特别处理规定"
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf"
       ],
-      "expected_source_policy": "canonical_doc_required",
-      "expected_answer": "应引用规范化后的《深圳市建筑市场严重违法行为特别处理规定》第五条核心内容：工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经责令限期整改后逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣资质证书，直至整改合格。docx/pdf 仅是同一法规的物理文件形态，不要求分别命中。",
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应同时引用docx和pdf两个来源，并核对第五条核心内容：工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经责令限期整改后逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣资质证书，直至整改合格。若抽取文本有表格噪声，应说明以可识别条款内容为准。",
       "expected_evidence": [
         {
-          "source": "深圳市建筑市场严重违法行为特别处理规定",
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        },
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf",
           "title": "深圳市建筑市场严重违法行为特别处理规定",
           "clause": "第五条",
           "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
         }
       ],
       "expected_aspects": [
-        "第五条",
-        "事故隐患",
-        "责令限期整改",
-        "逾期拒不整改或者整改不合格",
-        "暂扣资质证书直至整改合格"
+        "docx来源",
+        "pdf来源",
+        "第五条核心处理一致性",
+        "不得只引用其中一个同名文件"
       ],
       "must_not_use_sources": [],
       "metric_focus": [
@@ -1249,16 +1255,157 @@
       "minimum_required_aspect_count": 4
     },
     {
+      "id": "DL-M011",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "cross_source_role_comparison_rewrite",
+      "query": "分别列出林芝出租房安全管理条例和聊城市养犬管理条例中公安机关的职责，并说明两者职责重点有什么不同，引用不得交叉。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "林芝条例中公安机关负责出租房治安的统一监督管理；聊城条例中公安机关是养犬管理主管部门，负责犬只信息登记、签注、养犬信息系统、犬只收容救助场所管理，以及查处禁养限养、扰民、虐待遗弃、恐吓伤人等违法行为并组织捕捉流浪犬等。答案应体现两者一个偏出租房治安监督，一个偏犬只登记和养犬执法综合管理。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关是养犬管理的主管部门，负责犬只信息登记、签注，建立养犬信息管理系统，管理犬只收容救助场所，监督管理犬只展览、表演等大型活动，查处违反犬只禁养、限养、圈养拴养规定和犬只干扰他人正常生活、虐待或者遗弃犬只、放任犬只恐吓他人、驱使犬只伤害他人等违法行为，组织捕捉流浪犬、捕杀狂犬和正在伤人的犬只。\n\n农业农村部门负责组织实施并监督管理犬只免疫、发放狂犬病免疫证、植入电子芯片，监督管理兽用狂犬病疫苗，监测犬类狂犬病疫情、犬只检疫，查处无狂犬病免疫证养犬等。\n\n城市管理部门负责监督城市公园、广场、绿地等公共场所犬只禁入标识的设置，查处养犬影响市容和环境卫生，占用住宅小区公用区域养犬，违法在住宅小区或者占用公共场所从事犬只经营活动，违反携犬出户、犬只运送规定等行为。\n\n市场主体登记部门负责犬只经营、诊疗机构的登记注册。\n\n市场监督管理部门负责犬只交易活动的监督管理。\n\n卫生健康部门负责人用狂犬病疫苗的供应、接种和病人的诊治，人患狂犬病疫情的监测和防治，狂犬病预防的健康教育等工作。\n\n住房城乡建设部门负责监督指导物业服务企业参与养犬管理工作。\n\n财政部门负责养犬管理工作的经费保障。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝公安职责",
+        "聊城公安主管部门定位",
+        "聊城登记签注和系统职责",
+        "聊城违法行为查处职责",
+        "差异归纳"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M012",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "three_source_grassroots_duties_rewrite",
+      "query": "林芝出租房、聊城养犬、绍兴物业三个法规里，基层组织或社区主体分别承担哪些协助、监督或纠纷处理职责？请按文件分组回答。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应指出：林芝乡镇人民政府、街道办事处按属地管理做好出租房安全管理；聊城社区、居（村）民委员会、业主委员会协助宣传教育，可制定养犬公约、划定遛犬区域和时间并监督执行；绍兴居（村）民委员会指导监督业主大会和业主委员会，协助街道办事处、乡镇人民政府做好物业管理，引导业主参与，调解纠纷，协调物业管理与社区建设。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第六条",
+          "text": "第六条乡镇人民政府、街道办事处应当按照属地管理原则做好出租房安全管理工作。\n\n村（居）民委员会按照网格化服务管理要求，协助乡镇、街道和有关部门做好出租房安全管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第六条",
+          "text": "第六条社区、居（村）民委员会、业主委员会应当协助相关管理部门开展依法、文明养犬的宣传教育，可以就本区域内有关养犬事项制定公约，划定允许遛犬的区域和时间，设立标识并监督执行，引导、督促养犬人依法养犬、文明养犬。\n\n物业服务企业应当对服务区域内违法养犬行为予以制止，并向有关行政管理部门报告。\n\n鼓励养犬协会、动物保护组织等社会组织依法参与养犬管理活动，协助有关部门做好养犬管理工作。\n\n新闻、出版、广播、电视、报刊、网络等媒体应当加强对文明养犬知识的免费公益宣传，引导养犬人依法、文明养犬。"
+        },
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第六条",
+          "text": "第六条居（村）民委员会应当指导、监督业主大会和业主委员会依法履行职责，协助有关行政主管部门和街道办事处、\n\n乡镇人民政府做好物业管理工作，引导业主参与支持物业管理，\n\n调解物业管理纠纷，协调推进物业管理与社区建设。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝属地管理",
+        "聊城社区和业委会养犬协助",
+        "绍兴居村委物业协助",
+        "基层治理差异"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M013",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "fee_comparison_rewrite",
+      "query": "对比《聊城市养犬管理条例》的养犬管理服务费与《长春市森林资源管理条例》的使用林地费用：缴纳主体、收取主体、费用用途或减免条件分别是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "聊城犬只信息登记、签注应向公安机关交纳养犬管理服务费，收费按有关规定报省有关部门批准后执行，并规定盲人饲养导盲犬、肢体重残人饲养扶助犬免交，凭绝育证明免交。长春经批准使用林地的单位和个人必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费，四项费用由县级以上林业行政主管部门收取，并对森林植被恢复费上缴比例及费用用途作出规定。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二十条",
+          "text": "第二十条犬只信息登记、签注应当向公安机关交纳养犬管理服务费，养犬管理服务费的收取按照有关规定报省有关部门批准后执行。\n\n养犬管理服务费的收取和使用情况应当定期向社会公布。\n\n盲人饲养导盲犬、肢体重度残疾人饲养扶助犬，免交养犬管理服务费。\n\n养犬人凭犬只绝育证明，免交养犬管理服务费。"
+        },
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十九条",
+          "text": "第二十九条经批准使用林地的单位和个人，必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费。\n\n前款规定的四项费用，由县级以上林业行政主管部门收取，其中县级林业行政主管部门收取的森林植被恢复费，上缴市林业行政主管部门40%。\n\n林木补偿费、林地补偿费的补偿标准，按照吉林省有关规定执行。森林植被恢复费除了采伐迹地、火烧迹地外，按照被使用林地整地、造林、培育（包括森林防火、病虫鼠害防治、林地垦复、林木抚育等）全过程的重置价格缴纳。安置补助费根据使用林地范围内需要安置的人员数、对每个需要安置人口按照当地中等耕地单位面积平均年产值的2倍以上4倍以下补偿。\n\n林地补偿费、林木补偿费和安置补助费，除被使用林地上属于个人的附着物和青苗、林木的补偿费付给个人外，统由原林地、林木所有权或者使用权单位用于造林，发展林业生产和安置补助，不得挪作他用；森林植被恢复费用于森林植被的恢复和管护。"
+        }
+      ],
+      "expected_aspects": [
+        "聊城养犬服务费缴纳",
+        "聊城免交情形",
+        "长春林地四项费用",
+        "长春收取主体",
+        "费用用途或上缴规则"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
       "id": "DL-N001",
       "category": "negative_control",
       "difficulty_category": "负向控制类",
       "difficulty_level": "negative",
-      "subtype": "missing_document_exact",
+      "subtype": "nonexistent_region_title",
       "query": "请回答《不存在的城市出租房安全管理条例》适用于哪些活动？",
       "expected_behavior": "document_not_found",
       "expected_sources": [],
       "expected_source_policy": "not_found",
-      "expected_answer": "应明确找不到指定文档或法规，不应基于相似文档编造答案。",
+      "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的出租房安全管理条例当作答案来源。",
       "expected_evidence": [],
       "expected_aspects": [
         "识别文档缺失",
@@ -1266,6 +1413,7 @@
         "不引用相似来源"
       ],
       "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
       "metric_focus": [
         "negative_control_pass_rate",
         "route_pass_rate",
@@ -1278,6 +1426,7 @@
         "document_not_found",
         "not_found"
       ],
+      "allow_knowledge_base_debunk": false,
       "expected_no_retrieval": true
     },
     {
@@ -1293,14 +1442,15 @@
       "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的森林资源管理条例当作答案来源。",
       "expected_evidence": [],
       "expected_aspects": [
-        "近似标题不可替代",
-        "不得引用森林资源管理条例",
-        "返回 document_not_found"
+        "识别文档缺失",
+        "拒绝近似标题替代",
+        "不引用森林资源管理条例"
       ],
       "must_not_use_sources": [
         "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
         "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"
       ],
+      "allowed_retrieval_sources": [],
       "metric_focus": [
         "negative_control_pass_rate",
         "route_pass_rate",
@@ -1313,6 +1463,7 @@
         "document_not_found",
         "not_found"
       ],
+      "allow_knowledge_base_debunk": false,
       "expected_no_retrieval": true
     },
     {
@@ -1328,11 +1479,12 @@
       "expected_answer": "应要求用户补充具体法规或文件名称，因为仅凭条号无法确定唯一来源。",
       "expected_evidence": [],
       "expected_aspects": [
-        "缺少法规来源无法定位",
-        "提示用户补充文件名称",
-        "不直接检索回答"
+        "识别缺少具体文档",
+        "要求补充法规名称",
+        "不进入全库混合检索"
       ],
       "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
       "metric_focus": [
         "negative_control_pass_rate",
         "route_pass_rate",
@@ -1347,6 +1499,7 @@
         "compare_clarification",
         "ambiguous"
       ],
+      "allow_knowledge_base_debunk": false,
       "expected_no_retrieval": true
     },
     {
@@ -1362,17 +1515,17 @@
       "expected_answer": "应要求用户明确具体法规文件，因为深圳建筑相关文件存在多份，不能任选其中一份作答。",
       "expected_evidence": [],
       "expected_aspects": [
-        "深圳建筑相关文件存在多份",
-        "需要用户明确具体法规",
-        "不得任选来源"
+        "识别深圳建筑相关文件多义",
+        "要求补充具体法规名称",
+        "不任选单一来源回答"
       ],
       "must_not_use_sources": [
         "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
         "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf",
         "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
-        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
-        "深圳市建筑废弃物减排与利用条例_2009-05-31_.pdf"
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
       ],
+      "allowed_retrieval_sources": [],
       "metric_focus": [
         "negative_control_pass_rate",
         "route_pass_rate",
@@ -1387,6 +1540,7 @@
         "compare_clarification",
         "ambiguous"
       ],
+      "allow_knowledge_base_debunk": false,
       "expected_no_retrieval": true
     },
     {
@@ -1406,7 +1560,8 @@
         "不能引用出租房条例回答劳动问题",
         "说明证据不足"
       ],
-      "must_not_use_sources": [
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [
         "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
       ],
       "metric_focus": [
@@ -1423,7 +1578,8 @@
         "blocked",
         "out_of_scope"
       ],
-      "expected_no_retrieval": true
+      "allow_knowledge_base_debunk": true,
+      "expected_no_retrieval": false
     },
     {
       "id": "DL-N006",
@@ -1446,6 +1602,7 @@
         "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
         "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf"
       ],
+      "allowed_retrieval_sources": [],
       "metric_focus": [
         "negative_control_pass_rate",
         "route_pass_rate",
@@ -1459,6 +1616,4390 @@
         "not_found",
         "document_clarification"
       ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N007",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "nonexistent_region_title",
+      "query": "请回答《不存在的城市养犬管理条例》关于犬只登记有哪些要求？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定城市的养犬管理条例，不应把聊城市养犬管理条例作为替代来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别地域前缀不存在",
+        "返回文档未找到",
+        "不引用聊城市养犬管理条例"
+      ],
+      "must_not_use_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N008",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "business_term_collision",
+      "query": "《长春市森林防火条例》第十五条是什么？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定的森林防火条例，不能把森林资源管理条例作为近似来源回答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别森林防火与森林资源不是同一文件",
+        "返回文档未找到",
+        "不引用长春市森林资源管理条例"
+      ],
+      "must_not_use_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+        "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N009",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "bare_article_without_source",
+      "query": "第二十条规定了什么？",
+      "expected_behavior": "ask_clarification",
+      "expected_sources": [],
+      "expected_source_policy": "source_ambiguous",
+      "expected_answer": "应要求用户补充具体法规或文件名称，因为仅凭第二十条无法确定唯一来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别缺少具体文档",
+        "要求补充法规名称",
+        "不进入全库混合检索"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_clarification",
+        "document_ambiguous",
+        "compare_clarification",
+        "ambiguous"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N010",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "missing_duplicate_format",
+      "query": "请查询《聊城市养犬管理条例》xlsx 版本第二十条内容",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确指定的 xlsx 版本不存在，不应自动回退到同名 docx 文件作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "指定的 xlsx 文件不存在",
+        "不能回退 docx 版本",
+        "返回文档未找到或澄清"
+      ],
+      "must_not_use_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found",
+        "document_clarification"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N011",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "out_of_scope_law",
+      "query": "依据《聊城市养犬管理条例》，员工离职经济补偿怎么计算？",
+      "expected_behavior": "evidence_insufficient",
+      "expected_sources": [],
+      "expected_source_policy": "evidence_insufficient",
+      "expected_answer": "应说明该问题超出养犬管理法规的调整范围，当前证据不足以回答劳动经济补偿问题。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "问题超出法规调整范围",
+        "不能引用养犬条例回答劳动问题",
+        "说明证据不足"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "refusal",
+        "evidence_insufficient",
+        "blocked",
+        "out_of_scope"
+      ],
+      "allow_knowledge_base_debunk": true,
+      "expected_no_retrieval": false
+    },
+    {
+      "id": "DL-N012",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "missing_specific_version_year",
+      "query": "请查询《长春市森林资源管理条例》2019 年版本第十五条内容",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确未找到指定的 2019 年版本，不能回退到 2024 或 2004 年版本作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "指定年份版本不存在",
+        "不能回退其他年份版本",
+        "返回文档未找到或澄清"
+      ],
+      "must_not_use_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+        "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found",
+        "document_clarification"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-F011",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_focused_clause_rewrite",
+      "query": "只根据《林芝市出租房安全管理条例》第二条，回答：《林芝市出租房安全管理条例》适用于哪些出租房安全管理活动？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二条",
+          "text": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。"
+        }
+      ],
+      "expected_aspects": [
+        "适用地域",
+        "适用活动",
+        "出租房定义",
+        "排除民宿和旅馆业客房"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F012",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_citation_required_rewrite",
+      "query": "《林芝市出租房安全管理条例》适用于哪些出租房安全管理活动？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二条",
+          "text": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。"
+        }
+      ],
+      "expected_aspects": [
+        "适用地域",
+        "适用活动",
+        "出租房定义",
+        "排除民宿和旅馆业客房"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F013",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_key_points_rewrite",
+      "query": "请提炼《林芝市出租房安全管理条例》第二条中与该问题直接相关的规则要点：《林芝市出租房安全管理条例》适用于哪些出租房安全管理活动？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二条",
+          "text": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。"
+        }
+      ],
+      "expected_aspects": [
+        "适用地域",
+        "适用活动",
+        "出租房定义",
+        "排除民宿和旅馆业客房"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F014",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "responsibility_focused_clause_rewrite",
+      "query": "只根据《林芝市出租房安全管理条例》第五条，回答：林芝出租房安全管理中，公安机关、消防救援机构、住房城乡建设部门分别负责什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        }
+      ],
+      "expected_aspects": [
+        "公安机关职责",
+        "消防救援机构职责",
+        "住房城乡建设部门职责"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F015",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "responsibility_citation_required_rewrite",
+      "query": "林芝出租房安全管理中，公安机关、消防救援机构、住房城乡建设部门分别负责什么？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        }
+      ],
+      "expected_aspects": [
+        "公安机关职责",
+        "消防救援机构职责",
+        "住房城乡建设部门职责"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F016",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "responsibility_key_points_rewrite",
+      "query": "请提炼《林芝市出租房安全管理条例》第五条中与该问题直接相关的规则要点：林芝出租房安全管理中，公安机关、消防救援机构、住房城乡建设部门分别负责什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        }
+      ],
+      "expected_aspects": [
+        "公安机关职责",
+        "消防救援机构职责",
+        "住房城乡建设部门职责"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F017",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "prohibition_focused_clause_rewrite",
+      "query": "只根据《聊城市养犬管理条例》第十一条，回答：《聊城市养犬管理条例》对重点管理区饲养烈性犬和大型犬有什么规定？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十一条",
+          "text": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。"
+        }
+      ],
+      "expected_aspects": [
+        "重点管理区禁养",
+        "禁养品种标准制定主体",
+        "导盲犬等例外"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F018",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "prohibition_citation_required_rewrite",
+      "query": "《聊城市养犬管理条例》对重点管理区饲养烈性犬和大型犬有什么规定？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十一条",
+          "text": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。"
+        }
+      ],
+      "expected_aspects": [
+        "重点管理区禁养",
+        "禁养品种标准制定主体",
+        "导盲犬等例外"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F019",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "prohibition_key_points_rewrite",
+      "query": "请提炼《聊城市养犬管理条例》第十一条中与该问题直接相关的规则要点：《聊城市养犬管理条例》对重点管理区饲养烈性犬和大型犬有什么规定？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十一条",
+          "text": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。"
+        }
+      ],
+      "expected_aspects": [
+        "重点管理区禁养",
+        "禁养品种标准制定主体",
+        "导盲犬等例外"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F020",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "procedure_focused_clause_rewrite",
+      "query": "只根据《聊城市养犬管理条例》第十六条，回答：聊城市犬只信息登记申请提交后，公安机关应在多久内审查？不符合条件时如何处理？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十六条公安机关收到养犬人提交的信息登记材料，应当在三日内审查完毕。符合条件的，公安机关应当登记并发放犬只信息登记证、犬只标识牌；不符合条件的，不予登记，说明理由，并告知申请人十日内将犬只妥善处置或者送到犬只收容救助场所。\n\n犬只信息登记证、犬只标识牌、电子芯片毁损或者灭失的，养犬人应当及时申请补发或者重新植入。\n\n市、县（市、区）公安机关应当会同农业农村部门设立联合办公场所，实施犬只狂犬病免疫、办理犬只信息登记。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十六条",
+          "text": "第十六条公安机关收到养犬人提交的信息登记材料，应当在三日内审查完毕。符合条件的，公安机关应当登记并发放犬只信息登记证、犬只标识牌；不符合条件的，不予登记，说明理由，并告知申请人十日内将犬只妥善处置或者送到犬只收容救助场所。\n\n犬只信息登记证、犬只标识牌、电子芯片毁损或者灭失的，养犬人应当及时申请补发或者重新植入。\n\n市、县（市、区）公安机关应当会同农业农村部门设立联合办公场所，实施犬只狂犬病免疫、办理犬只信息登记。"
+        }
+      ],
+      "expected_aspects": [
+        "三日内审查",
+        "符合条件发证发牌",
+        "不符合条件说明理由",
+        "十日内处置或送收容场所"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F021",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "procedure_citation_required_rewrite",
+      "query": "聊城市犬只信息登记申请提交后，公安机关应在多久内审查？不符合条件时如何处理？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十六条公安机关收到养犬人提交的信息登记材料，应当在三日内审查完毕。符合条件的，公安机关应当登记并发放犬只信息登记证、犬只标识牌；不符合条件的，不予登记，说明理由，并告知申请人十日内将犬只妥善处置或者送到犬只收容救助场所。\n\n犬只信息登记证、犬只标识牌、电子芯片毁损或者灭失的，养犬人应当及时申请补发或者重新植入。\n\n市、县（市、区）公安机关应当会同农业农村部门设立联合办公场所，实施犬只狂犬病免疫、办理犬只信息登记。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十六条",
+          "text": "第十六条公安机关收到养犬人提交的信息登记材料，应当在三日内审查完毕。符合条件的，公安机关应当登记并发放犬只信息登记证、犬只标识牌；不符合条件的，不予登记，说明理由，并告知申请人十日内将犬只妥善处置或者送到犬只收容救助场所。\n\n犬只信息登记证、犬只标识牌、电子芯片毁损或者灭失的，养犬人应当及时申请补发或者重新植入。\n\n市、县（市、区）公安机关应当会同农业农村部门设立联合办公场所，实施犬只狂犬病免疫、办理犬只信息登记。"
+        }
+      ],
+      "expected_aspects": [
+        "三日内审查",
+        "符合条件发证发牌",
+        "不符合条件说明理由",
+        "十日内处置或送收容场所"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F022",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "procedure_key_points_rewrite",
+      "query": "请提炼《聊城市养犬管理条例》第十六条中与该问题直接相关的规则要点：聊城市犬只信息登记申请提交后，公安机关应在多久内审查？不符合条件时如何处理？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十六条公安机关收到养犬人提交的信息登记材料，应当在三日内审查完毕。符合条件的，公安机关应当登记并发放犬只信息登记证、犬只标识牌；不符合条件的，不予登记，说明理由，并告知申请人十日内将犬只妥善处置或者送到犬只收容救助场所。\n\n犬只信息登记证、犬只标识牌、电子芯片毁损或者灭失的，养犬人应当及时申请补发或者重新植入。\n\n市、县（市、区）公安机关应当会同农业农村部门设立联合办公场所，实施犬只狂犬病免疫、办理犬只信息登记。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十六条",
+          "text": "第十六条公安机关收到养犬人提交的信息登记材料，应当在三日内审查完毕。符合条件的，公安机关应当登记并发放犬只信息登记证、犬只标识牌；不符合条件的，不予登记，说明理由，并告知申请人十日内将犬只妥善处置或者送到犬只收容救助场所。\n\n犬只信息登记证、犬只标识牌、电子芯片毁损或者灭失的，养犬人应当及时申请补发或者重新植入。\n\n市、县（市、区）公安机关应当会同农业农村部门设立联合办公场所，实施犬只狂犬病免疫、办理犬只信息登记。"
+        }
+      ],
+      "expected_aspects": [
+        "三日内审查",
+        "符合条件发证发牌",
+        "不符合条件说明理由",
+        "十日内处置或送收容场所"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F023",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "platform_focused_clause_rewrite",
+      "query": "只根据《绍兴市物业管理条例》第七条，回答：绍兴物业管理电子信息平台主要用于哪些事项？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第七条",
+          "text": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。"
+        }
+      ],
+      "expected_aspects": [
+        "交付统计",
+        "业主意见征求和投票",
+        "信用状况公示",
+        "物业服务规范和成本信息",
+        "纠纷投诉"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F024",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "platform_citation_required_rewrite",
+      "query": "绍兴物业管理电子信息平台主要用于哪些事项？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第七条",
+          "text": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。"
+        }
+      ],
+      "expected_aspects": [
+        "交付统计",
+        "业主意见征求和投票",
+        "信用状况公示",
+        "物业服务规范和成本信息",
+        "纠纷投诉"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F025",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "platform_key_points_rewrite",
+      "query": "请提炼《绍兴市物业管理条例》第七条中与该问题直接相关的规则要点：绍兴物业管理电子信息平台主要用于哪些事项？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第七条",
+          "text": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。"
+        }
+      ],
+      "expected_aspects": [
+        "交付统计",
+        "业主意见征求和投票",
+        "信用状况公示",
+        "物业服务规范和成本信息",
+        "纠纷投诉"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F026",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_focused_clause_rewrite",
+      "query": "只根据《深圳市建筑废弃物减排与利用条例》第二条，回答：《深圳市建筑废弃物减排与利用条例》的适用范围是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本市建筑废弃物的减排与回收利用及其监督管理适用本条例。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第二条",
+          "text": "第二条本市建筑废弃物的减排与回收利用及其监督管理适用本条例。"
+        }
+      ],
+      "expected_aspects": [
+        "适用于本市行政区域",
+        "建设工程新建改建扩建拆除",
+        "建筑废弃物减排与利用"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F027",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_citation_required_rewrite",
+      "query": "《深圳市建筑废弃物减排与利用条例》的适用范围是什么？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本市建筑废弃物的减排与回收利用及其监督管理适用本条例。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第二条",
+          "text": "第二条本市建筑废弃物的减排与回收利用及其监督管理适用本条例。"
+        }
+      ],
+      "expected_aspects": [
+        "适用于本市行政区域",
+        "建设工程新建改建扩建拆除",
+        "建筑废弃物减排与利用"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F028",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_key_points_rewrite",
+      "query": "请提炼《深圳市建筑废弃物减排与利用条例》第二条中与该问题直接相关的规则要点：《深圳市建筑废弃物减排与利用条例》的适用范围是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本市建筑废弃物的减排与回收利用及其监督管理适用本条例。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第二条",
+          "text": "第二条本市建筑废弃物的减排与回收利用及其监督管理适用本条例。"
+        }
+      ],
+      "expected_aspects": [
+        "适用于本市行政区域",
+        "建设工程新建改建扩建拆除",
+        "建筑废弃物减排与利用"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F029",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "penalty_authority_focused_clause_rewrite",
+      "query": "只根据《深圳市建设工程质量管理条例》第七十九条，回答：《深圳市建设工程质量管理条例》第七十九条如何划分行政处罚决定机关？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第七十九条本条例规定的有关责令停业整顿、降低资质等级、吊销资质证书的处罚，由颁发证书的主管部门依法决定；违反工程勘察、设计质量管理规定的处罚，由规划行政主管部门依法决定；其他行政处罚，由建设行政主管部门或者有关专业工程行政主管部门依法决定。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+          "title": "深圳市建设工程质量管理条例",
+          "clause": "第七十九条",
+          "text": "第七十九条本条例规定的有关责令停业整顿、降低资质等级、吊销资质证书的处罚，由颁发证书的主管部门依法决定；违反工程勘察、设计质量管理规定的处罚，由规划行政主管部门依法决定；其他行政处罚，由建设行政主管部门或者有关专业工程行政主管部门依法决定。"
+        }
+      ],
+      "expected_aspects": [
+        "责令停业整顿等由颁证主管部门决定",
+        "勘察设计质量处罚由规划主管部门决定",
+        "其他处罚由建设或专业工程主管部门决定"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F030",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "penalty_authority_citation_required_rewrite",
+      "query": "《深圳市建设工程质量管理条例》第七十九条如何划分行政处罚决定机关？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第七十九条本条例规定的有关责令停业整顿、降低资质等级、吊销资质证书的处罚，由颁发证书的主管部门依法决定；违反工程勘察、设计质量管理规定的处罚，由规划行政主管部门依法决定；其他行政处罚，由建设行政主管部门或者有关专业工程行政主管部门依法决定。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+          "title": "深圳市建设工程质量管理条例",
+          "clause": "第七十九条",
+          "text": "第七十九条本条例规定的有关责令停业整顿、降低资质等级、吊销资质证书的处罚，由颁发证书的主管部门依法决定；违反工程勘察、设计质量管理规定的处罚，由规划行政主管部门依法决定；其他行政处罚，由建设行政主管部门或者有关专业工程行政主管部门依法决定。"
+        }
+      ],
+      "expected_aspects": [
+        "责令停业整顿等由颁证主管部门决定",
+        "勘察设计质量处罚由规划主管部门决定",
+        "其他处罚由建设或专业工程主管部门决定"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F031",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "penalty_authority_key_points_rewrite",
+      "query": "请提炼《深圳市建设工程质量管理条例》第七十九条中与该问题直接相关的规则要点：《深圳市建设工程质量管理条例》第七十九条如何划分行政处罚决定机关？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第七十九条本条例规定的有关责令停业整顿、降低资质等级、吊销资质证书的处罚，由颁发证书的主管部门依法决定；违反工程勘察、设计质量管理规定的处罚，由规划行政主管部门依法决定；其他行政处罚，由建设行政主管部门或者有关专业工程行政主管部门依法决定。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+          "title": "深圳市建设工程质量管理条例",
+          "clause": "第七十九条",
+          "text": "第七十九条本条例规定的有关责令停业整顿、降低资质等级、吊销资质证书的处罚，由颁发证书的主管部门依法决定；违反工程勘察、设计质量管理规定的处罚，由规划行政主管部门依法决定；其他行政处罚，由建设行政主管部门或者有关专业工程行政主管部门依法决定。"
+        }
+      ],
+      "expected_aspects": [
+        "责令停业整顿等由颁证主管部门决定",
+        "勘察设计质量处罚由规划主管部门决定",
+        "其他处罚由建设或专业工程主管部门决定"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F032",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "time_period_focused_clause_rewrite",
+      "query": "只根据《长春市森林资源管理条例》第十五条，回答：长春森林防火期和森林防火戒严期分别是什么时间？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第十五条",
+          "text": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。"
+        }
+      ],
+      "expected_aspects": [
+        "防火期",
+        "戒严期",
+        "防火期野外用火审批",
+        "戒严期禁止一切野外用火"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F033",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "time_period_citation_required_rewrite",
+      "query": "长春森林防火期和森林防火戒严期分别是什么时间？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第十五条",
+          "text": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。"
+        }
+      ],
+      "expected_aspects": [
+        "防火期",
+        "戒严期",
+        "防火期野外用火审批",
+        "戒严期禁止一切野外用火"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F034",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "time_period_key_points_rewrite",
+      "query": "请提炼《长春市森林资源管理条例》第十五条中与该问题直接相关的规则要点：长春森林防火期和森林防火戒严期分别是什么时间？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第十五条",
+          "text": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。"
+        }
+      ],
+      "expected_aspects": [
+        "防火期",
+        "戒严期",
+        "防火期野外用火审批",
+        "戒严期禁止一切野外用火"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F035",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "responsibility_focused_clause_rewrite",
+      "query": "只根据《陵水黎族自治县非物质文化遗产保护条例》第五条，回答：陵水黎族自治县非物质文化遗产保护工作由哪些主体负责？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第五条自治县人民政府领导本行政区域内的非物质文化遗产保护工作 。\n\n自治县人民政府文化主管部门负责本行政区域内的非物质文化遗产保护工作的管理与监督 。\n\n自治县各乡镇人民政府和民族宗教 、发展与改革 、财政 、规划与建设 、公安 、工商 、\n\n教育 、卫生 、旅游等有关部门各司其职 ，协助文化主管部门做好非物质文化遗产保护工作 。",
+      "expected_evidence": [
+        {
+          "source": "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf",
+          "title": "陵水黎族自治县非物质文化遗产保护条例",
+          "clause": "第五条",
+          "text": "第五条自治县人民政府领导本行政区域内的非物质文化遗产保护工作 。\n\n自治县人民政府文化主管部门负责本行政区域内的非物质文化遗产保护工作的管理与监督 。\n\n自治县各乡镇人民政府和民族宗教 、发展与改革 、财政 、规划与建设 、公安 、工商 、\n\n教育 、卫生 、旅游等有关部门各司其职 ，协助文化主管部门做好非物质文化遗产保护工作 。"
+        }
+      ],
+      "expected_aspects": [
+        "自治县人民政府领导",
+        "文化主管部门管理监督",
+        "乡镇和有关部门协助"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F036",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "responsibility_citation_required_rewrite",
+      "query": "陵水黎族自治县非物质文化遗产保护工作由哪些主体负责？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第五条自治县人民政府领导本行政区域内的非物质文化遗产保护工作 。\n\n自治县人民政府文化主管部门负责本行政区域内的非物质文化遗产保护工作的管理与监督 。\n\n自治县各乡镇人民政府和民族宗教 、发展与改革 、财政 、规划与建设 、公安 、工商 、\n\n教育 、卫生 、旅游等有关部门各司其职 ，协助文化主管部门做好非物质文化遗产保护工作 。",
+      "expected_evidence": [
+        {
+          "source": "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf",
+          "title": "陵水黎族自治县非物质文化遗产保护条例",
+          "clause": "第五条",
+          "text": "第五条自治县人民政府领导本行政区域内的非物质文化遗产保护工作 。\n\n自治县人民政府文化主管部门负责本行政区域内的非物质文化遗产保护工作的管理与监督 。\n\n自治县各乡镇人民政府和民族宗教 、发展与改革 、财政 、规划与建设 、公安 、工商 、\n\n教育 、卫生 、旅游等有关部门各司其职 ，协助文化主管部门做好非物质文化遗产保护工作 。"
+        }
+      ],
+      "expected_aspects": [
+        "自治县人民政府领导",
+        "文化主管部门管理监督",
+        "乡镇和有关部门协助"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F037",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "responsibility_key_points_rewrite",
+      "query": "请提炼《陵水黎族自治县非物质文化遗产保护条例》第五条中与该问题直接相关的规则要点：陵水黎族自治县非物质文化遗产保护工作由哪些主体负责？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第五条自治县人民政府领导本行政区域内的非物质文化遗产保护工作 。\n\n自治县人民政府文化主管部门负责本行政区域内的非物质文化遗产保护工作的管理与监督 。\n\n自治县各乡镇人民政府和民族宗教 、发展与改革 、财政 、规划与建设 、公安 、工商 、\n\n教育 、卫生 、旅游等有关部门各司其职 ，协助文化主管部门做好非物质文化遗产保护工作 。",
+      "expected_evidence": [
+        {
+          "source": "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf",
+          "title": "陵水黎族自治县非物质文化遗产保护条例",
+          "clause": "第五条",
+          "text": "第五条自治县人民政府领导本行政区域内的非物质文化遗产保护工作 。\n\n自治县人民政府文化主管部门负责本行政区域内的非物质文化遗产保护工作的管理与监督 。\n\n自治县各乡镇人民政府和民族宗教 、发展与改革 、财政 、规划与建设 、公安 、工商 、\n\n教育 、卫生 、旅游等有关部门各司其职 ，协助文化主管部门做好非物质文化遗产保护工作 。"
+        }
+      ],
+      "expected_aspects": [
+        "自治县人民政府领导",
+        "文化主管部门管理监督",
+        "乡镇和有关部门协助"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F038",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_focused_clause_rewrite",
+      "query": "只根据《长春市肉品管理条例》第二条，回答：《长春市肉品管理条例》适用于哪些对象和区域？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市肉品管理条例__.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本条例适用于本市行政区域内的肉品管理，任何单位、个人均须遵守本条例。",
+      "expected_evidence": [
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二条",
+          "text": "第二条本条例适用于本市行政区域内的肉品管理，任何单位、个人均须遵守本条例。"
+        }
+      ],
+      "expected_aspects": [
+        "本市行政区域",
+        "肉品管理",
+        "任何单位和个人均须遵守"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F039",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_citation_required_rewrite",
+      "query": "《长春市肉品管理条例》适用于哪些对象和区域？ 请同时给出对应条款依据。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市肉品管理条例__.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本条例适用于本市行政区域内的肉品管理，任何单位、个人均须遵守本条例。",
+      "expected_evidence": [
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二条",
+          "text": "第二条本条例适用于本市行政区域内的肉品管理，任何单位、个人均须遵守本条例。"
+        }
+      ],
+      "expected_aspects": [
+        "本市行政区域",
+        "肉品管理",
+        "任何单位和个人均须遵守"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-F040",
+      "category": "fact_retrieval",
+      "difficulty_category": "事实检索类",
+      "difficulty_level": "easy",
+      "subtype": "scope_key_points_rewrite",
+      "query": "请提炼《长春市肉品管理条例》第二条中与该问题直接相关的规则要点：《长春市肉品管理条例》适用于哪些对象和区域？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市肉品管理条例__.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "第二条本条例适用于本市行政区域内的肉品管理，任何单位、个人均须遵守本条例。",
+      "expected_evidence": [
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二条",
+          "text": "第二条本条例适用于本市行政区域内的肉品管理，任何单位、个人均须遵守本条例。"
+        }
+      ],
+      "expected_aspects": [
+        "本市行政区域",
+        "肉品管理",
+        "任何单位和个人均须遵守"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-L011",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "deadline_and_authority_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：出租人在林芝签订房屋租赁合同后第35天仍未备案，应当补办到哪个部门，原本法定期限是多少？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "应指出出租人应自签订房屋租赁合同之日起三十日内，到出租房所在地住房城乡建设部门办理出租房租赁登记备案；第35天未备案已经超过该期限，应补办备案。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第十七条",
+          "text": "第十七条出租人应当自签订房屋租赁合同之日起三十日内，到出租房所在地的住房城乡建设部门办理出租房租赁登记备案。\n\n公安机关在办理流动人口居住登记时，应当告知出租人及时办理出租房租赁登记备案。\n\n第三章治安安全管理"
+        }
+      ],
+      "expected_aspects": [
+        "三十日内",
+        "住房城乡建设部门",
+        "超过期限需要补办",
+        "公安机关办理居住登记时有告知义务"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L012",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "deadline_and_authority_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：出租人在林芝签订房屋租赁合同后第35天仍未备案，应当补办到哪个部门，原本法定期限是多少？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "应指出出租人应自签订房屋租赁合同之日起三十日内，到出租房所在地住房城乡建设部门办理出租房租赁登记备案；第35天未备案已经超过该期限，应补办备案。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第十七条",
+          "text": "第十七条出租人应当自签订房屋租赁合同之日起三十日内，到出租房所在地的住房城乡建设部门办理出租房租赁登记备案。\n\n公安机关在办理流动人口居住登记时，应当告知出租人及时办理出租房租赁登记备案。\n\n第三章治安安全管理"
+        }
+      ],
+      "expected_aspects": [
+        "三十日内",
+        "住房城乡建设部门",
+        "超过期限需要补办",
+        "公安机关办理居住登记时有告知义务"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L013",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "deadline_and_authority_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：出租人在林芝签订房屋租赁合同后第35天仍未备案，应当补办到哪个部门，原本法定期限是多少？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "应指出出租人应自签订房屋租赁合同之日起三十日内，到出租房所在地住房城乡建设部门办理出租房租赁登记备案；第35天未备案已经超过该期限，应补办备案。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第十七条",
+          "text": "第十七条出租人应当自签订房屋租赁合同之日起三十日内，到出租房所在地的住房城乡建设部门办理出租房租赁登记备案。\n\n公安机关在办理流动人口居住登记时，应当告知出租人及时办理出租房租赁登记备案。\n\n第三章治安安全管理"
+        }
+      ],
+      "expected_aspects": [
+        "三十日内",
+        "住房城乡建设部门",
+        "超过期限需要补办",
+        "公安机关办理居住登记时有告知义务"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L014",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "required_vs_encouraged_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：林芝集中式租赁住房是否必须安装火灾探测报警器？防烟面罩和救生缓降器属于必须还是鼓励配备？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "集中式租赁住房出租人应当在每间居室以及公共区域安装火灾探测报警器或者智能火灾预警装置，并在公共区域安装应急照明灯、张贴疏散路线图；防烟面罩、强光手电筒、救生缓降器、自救呼吸器等逃生辅助装置属于鼓励配备。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二十二条",
+          "text": "第二十二条出租房应当符合下列消防安全要求：\n\n（一）疏散楼梯、疏散通道、安全出口、逃生窗等设施的设置符合国家、自治区消防技术标准；\n\n（二）建筑外窗一般不得设置影响逃生和灭火救援的障碍物，确需安装金属栅栏等设施的，应当便于从内部开启；\n\n（三）建筑外墙装修装饰、建筑屋面使用以及广告牌等设施的设置，不得影响防火、逃生和灭火救援；\n\n（四）按照消防安全技术标准，在出入口、主要通道等公共区域方便取用的位置配备灭火、逃生器材，并保证其正常使用；\n\n（五）法律、法规规定的其他消防安全要求。\n\n集中式租赁住房出租人应当在每间居室以及公共区域安装火灾探测报警器或者智能火灾预警装置，在公共区域安装应急照明灯，并在每间居室张贴应急疏散路线图。\n\n鼓励在出租住房安装简易消防设施，配备防烟面罩、强光手电筒、救生缓降器、自救呼吸器等逃生辅助装置。"
+        }
+      ],
+      "expected_aspects": [
+        "集中式租赁住房为应当安装",
+        "公共区域应急照明灯",
+        "每间居室张贴疏散路线图",
+        "逃生辅助装置为鼓励"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L015",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "required_vs_encouraged_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：林芝集中式租赁住房是否必须安装火灾探测报警器？防烟面罩和救生缓降器属于必须还是鼓励配备？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "集中式租赁住房出租人应当在每间居室以及公共区域安装火灾探测报警器或者智能火灾预警装置，并在公共区域安装应急照明灯、张贴疏散路线图；防烟面罩、强光手电筒、救生缓降器、自救呼吸器等逃生辅助装置属于鼓励配备。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二十二条",
+          "text": "第二十二条出租房应当符合下列消防安全要求：\n\n（一）疏散楼梯、疏散通道、安全出口、逃生窗等设施的设置符合国家、自治区消防技术标准；\n\n（二）建筑外窗一般不得设置影响逃生和灭火救援的障碍物，确需安装金属栅栏等设施的，应当便于从内部开启；\n\n（三）建筑外墙装修装饰、建筑屋面使用以及广告牌等设施的设置，不得影响防火、逃生和灭火救援；\n\n（四）按照消防安全技术标准，在出入口、主要通道等公共区域方便取用的位置配备灭火、逃生器材，并保证其正常使用；\n\n（五）法律、法规规定的其他消防安全要求。\n\n集中式租赁住房出租人应当在每间居室以及公共区域安装火灾探测报警器或者智能火灾预警装置，在公共区域安装应急照明灯，并在每间居室张贴应急疏散路线图。\n\n鼓励在出租住房安装简易消防设施，配备防烟面罩、强光手电筒、救生缓降器、自救呼吸器等逃生辅助装置。"
+        }
+      ],
+      "expected_aspects": [
+        "集中式租赁住房为应当安装",
+        "公共区域应急照明灯",
+        "每间居室张贴疏散路线图",
+        "逃生辅助装置为鼓励"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L016",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "required_vs_encouraged_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：林芝集中式租赁住房是否必须安装火灾探测报警器？防烟面罩和救生缓降器属于必须还是鼓励配备？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "集中式租赁住房出租人应当在每间居室以及公共区域安装火灾探测报警器或者智能火灾预警装置，并在公共区域安装应急照明灯、张贴疏散路线图；防烟面罩、强光手电筒、救生缓降器、自救呼吸器等逃生辅助装置属于鼓励配备。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二十二条",
+          "text": "第二十二条出租房应当符合下列消防安全要求：\n\n（一）疏散楼梯、疏散通道、安全出口、逃生窗等设施的设置符合国家、自治区消防技术标准；\n\n（二）建筑外窗一般不得设置影响逃生和灭火救援的障碍物，确需安装金属栅栏等设施的，应当便于从内部开启；\n\n（三）建筑外墙装修装饰、建筑屋面使用以及广告牌等设施的设置，不得影响防火、逃生和灭火救援；\n\n（四）按照消防安全技术标准，在出入口、主要通道等公共区域方便取用的位置配备灭火、逃生器材，并保证其正常使用；\n\n（五）法律、法规规定的其他消防安全要求。\n\n集中式租赁住房出租人应当在每间居室以及公共区域安装火灾探测报警器或者智能火灾预警装置，在公共区域安装应急照明灯，并在每间居室张贴应急疏散路线图。\n\n鼓励在出租住房安装简易消防设施，配备防烟面罩、强光手电筒、救生缓降器、自救呼吸器等逃生辅助装置。"
+        }
+      ],
+      "expected_aspects": [
+        "集中式租赁住房为应当安装",
+        "公共区域应急照明灯",
+        "每间居室张贴疏散路线图",
+        "逃生辅助装置为鼓励"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L017",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "condition_chain_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：聊城市重点管理区犬只出生满三个月后，免疫、芯片和禁养规则应如何依次判断？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "犬只出生满三个月之日起十五日内或者免疫间隔期满前应接受狂犬病免疫并取得免疫证；重点管理区犬只在免疫接种时植入电子芯片；同时重点管理区禁止饲养烈性犬和大型犬，但导盲犬、搜救犬及特殊需要犬只不受该禁养限制。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十条",
+          "text": "第十条重点管理区和一般管理区均实行犬只狂犬病免疫制度。\n\n犬只自出生满三个月之日起十五日内或者免疫间隔期满前，应当接受狂犬病免疫接种，取得狂犬病免疫证。\n\n重点管理区的犬只在狂犬病免疫接种时植入电子芯片。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十一条",
+          "text": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。"
+        }
+      ],
+      "expected_aspects": [
+        "出生满三个月起十五日内免疫",
+        "取得狂犬病免疫证",
+        "重点管理区免疫时植入电子芯片",
+        "重点管理区禁养烈性犬和大型犬",
+        "列明例外"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L018",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "condition_chain_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：聊城市重点管理区犬只出生满三个月后，免疫、芯片和禁养规则应如何依次判断？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "犬只出生满三个月之日起十五日内或者免疫间隔期满前应接受狂犬病免疫并取得免疫证；重点管理区犬只在免疫接种时植入电子芯片；同时重点管理区禁止饲养烈性犬和大型犬，但导盲犬、搜救犬及特殊需要犬只不受该禁养限制。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十条",
+          "text": "第十条重点管理区和一般管理区均实行犬只狂犬病免疫制度。\n\n犬只自出生满三个月之日起十五日内或者免疫间隔期满前，应当接受狂犬病免疫接种，取得狂犬病免疫证。\n\n重点管理区的犬只在狂犬病免疫接种时植入电子芯片。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十一条",
+          "text": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。"
+        }
+      ],
+      "expected_aspects": [
+        "出生满三个月起十五日内免疫",
+        "取得狂犬病免疫证",
+        "重点管理区免疫时植入电子芯片",
+        "重点管理区禁养烈性犬和大型犬",
+        "列明例外"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L019",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "condition_chain_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：聊城市重点管理区犬只出生满三个月后，免疫、芯片和禁养规则应如何依次判断？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "犬只出生满三个月之日起十五日内或者免疫间隔期满前应接受狂犬病免疫并取得免疫证；重点管理区犬只在免疫接种时植入电子芯片；同时重点管理区禁止饲养烈性犬和大型犬，但导盲犬、搜救犬及特殊需要犬只不受该禁养限制。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十条",
+          "text": "第十条重点管理区和一般管理区均实行犬只狂犬病免疫制度。\n\n犬只自出生满三个月之日起十五日内或者免疫间隔期满前，应当接受狂犬病免疫接种，取得狂犬病免疫证。\n\n重点管理区的犬只在狂犬病免疫接种时植入电子芯片。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十一条",
+          "text": "第十一条重点管理区内禁止饲养烈性犬和大型犬。\n\n禁养犬的品种和标准由市级农业农村部门会同公安机关、城市管理部门确定，报市人民政府批准后向社会公布。\n\n导盲犬、搜救犬的饲养和科研机构、动物园、专业表演团队等单位特殊需要犬只的饲养，不受第一款规定限制。"
+        }
+      ],
+      "expected_aspects": [
+        "出生满三个月起十五日内免疫",
+        "取得狂犬病免疫证",
+        "重点管理区免疫时植入电子芯片",
+        "重点管理区禁养烈性犬和大型犬",
+        "列明例外"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L020",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "violation_to_penalty_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：聊城市养犬人未按规定办理犬只信息登记，逾期仍不登记时，个人和单位分别面临什么后果？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "应先责令限期补办；逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，并可以并处没收犬只。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第三十八条",
+          "text": "第三十八条违反本条例规定，有下列行为之一的，由公安机关予以处罚:\n\n（一）不按规定办理犬只信息登记的，责令限期补办，逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，可以并处没收犬只；\n\n（二）不按规定签注、变更、注销、补办犬只信息登记证或者未按规定补办犬只标识牌的，责令改正；拒不改正的，对个人处二百元以上五百元以下罚款，对单位处五百元以上一千元以下罚款；\n\n（三）违反规定在重点管理区内饲养烈性犬和大型犬只的，没收犬只，并对个人每只处五百元以上二千元以下罚款，对单位每只处二千元以上五千元以下罚款；\n\n（四）饲养犬只超过限养数量的，责令改正；拒不改正的，没收超养犬只，每超养一只并处二百元以上五百元以下罚款；\n\n（五）重点管理区内单位饲养犬只未圈养或者拴养的，责令改正，每只处五百元罚款；一般管理区内饲养烈性犬、大型犬未圈养或者拴养的，责令改正，每只处二百元罚款；\n\n（六）虐待、遗弃犬只的，责令改正，并处二百元以上五百元以下罚款；\n\n（七）饲养犬只干扰他人正常生活的，给予警告，责令改正；拒不改正的，处二百元以上五百元以下罚款；\n\n（八）放任犬只恐吓他人的，处二百元以上五百元以下罚款；\n\n（九）放任犬只伤害他人，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十）驱使犬只伤害他人的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十一）组织、参与利用犬只进行赌博性质活动，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十二）伪造、变造或买卖养犬管理相关证件的，依照《中华人民共和国治安管理处罚法》的规定予以处罚。\n\n有前款第（九）至第（十二）项行为，构成犯罪的，依法追究刑事责任。"
+        }
+      ],
+      "expected_aspects": [
+        "责令限期补办",
+        "个人罚款二百元以上一千元以下",
+        "单位罚款一千元以上二千元以下",
+        "可以并处没收犬只"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L021",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "violation_to_penalty_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：聊城市养犬人未按规定办理犬只信息登记，逾期仍不登记时，个人和单位分别面临什么后果？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "应先责令限期补办；逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，并可以并处没收犬只。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第三十八条",
+          "text": "第三十八条违反本条例规定，有下列行为之一的，由公安机关予以处罚:\n\n（一）不按规定办理犬只信息登记的，责令限期补办，逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，可以并处没收犬只；\n\n（二）不按规定签注、变更、注销、补办犬只信息登记证或者未按规定补办犬只标识牌的，责令改正；拒不改正的，对个人处二百元以上五百元以下罚款，对单位处五百元以上一千元以下罚款；\n\n（三）违反规定在重点管理区内饲养烈性犬和大型犬只的，没收犬只，并对个人每只处五百元以上二千元以下罚款，对单位每只处二千元以上五千元以下罚款；\n\n（四）饲养犬只超过限养数量的，责令改正；拒不改正的，没收超养犬只，每超养一只并处二百元以上五百元以下罚款；\n\n（五）重点管理区内单位饲养犬只未圈养或者拴养的，责令改正，每只处五百元罚款；一般管理区内饲养烈性犬、大型犬未圈养或者拴养的，责令改正，每只处二百元罚款；\n\n（六）虐待、遗弃犬只的，责令改正，并处二百元以上五百元以下罚款；\n\n（七）饲养犬只干扰他人正常生活的，给予警告，责令改正；拒不改正的，处二百元以上五百元以下罚款；\n\n（八）放任犬只恐吓他人的，处二百元以上五百元以下罚款；\n\n（九）放任犬只伤害他人，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十）驱使犬只伤害他人的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十一）组织、参与利用犬只进行赌博性质活动，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十二）伪造、变造或买卖养犬管理相关证件的，依照《中华人民共和国治安管理处罚法》的规定予以处罚。\n\n有前款第（九）至第（十二）项行为，构成犯罪的，依法追究刑事责任。"
+        }
+      ],
+      "expected_aspects": [
+        "责令限期补办",
+        "个人罚款二百元以上一千元以下",
+        "单位罚款一千元以上二千元以下",
+        "可以并处没收犬只"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L022",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "violation_to_penalty_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：聊城市养犬人未按规定办理犬只信息登记，逾期仍不登记时，个人和单位分别面临什么后果？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "应先责令限期补办；逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，并可以并处没收犬只。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第三十八条",
+          "text": "第三十八条违反本条例规定，有下列行为之一的，由公安机关予以处罚:\n\n（一）不按规定办理犬只信息登记的，责令限期补办，逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，可以并处没收犬只；\n\n（二）不按规定签注、变更、注销、补办犬只信息登记证或者未按规定补办犬只标识牌的，责令改正；拒不改正的，对个人处二百元以上五百元以下罚款，对单位处五百元以上一千元以下罚款；\n\n（三）违反规定在重点管理区内饲养烈性犬和大型犬只的，没收犬只，并对个人每只处五百元以上二千元以下罚款，对单位每只处二千元以上五千元以下罚款；\n\n（四）饲养犬只超过限养数量的，责令改正；拒不改正的，没收超养犬只，每超养一只并处二百元以上五百元以下罚款；\n\n（五）重点管理区内单位饲养犬只未圈养或者拴养的，责令改正，每只处五百元罚款；一般管理区内饲养烈性犬、大型犬未圈养或者拴养的，责令改正，每只处二百元罚款；\n\n（六）虐待、遗弃犬只的，责令改正，并处二百元以上五百元以下罚款；\n\n（七）饲养犬只干扰他人正常生活的，给予警告，责令改正；拒不改正的，处二百元以上五百元以下罚款；\n\n（八）放任犬只恐吓他人的，处二百元以上五百元以下罚款；\n\n（九）放任犬只伤害他人，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十）驱使犬只伤害他人的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十一）组织、参与利用犬只进行赌博性质活动，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十二）伪造、变造或买卖养犬管理相关证件的，依照《中华人民共和国治安管理处罚法》的规定予以处罚。\n\n有前款第（九）至第（十二）项行为，构成犯罪的，依法追究刑事责任。"
+        }
+      ],
+      "expected_aspects": [
+        "责令限期补办",
+        "个人罚款二百元以上一千元以下",
+        "单位罚款一千元以上二千元以下",
+        "可以并处没收犬只"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L023",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "date_reasoning_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：10月20日在长春林区野外用火，是否处于森林防火戒严期？此时入山和用火规则是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "10月20日落在9月25日至10月31日的森林防火戒严期内。戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》，防火检查人员可检查人员和车辆、扣留不准携带的火种并制止无证人员入山。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第十五条",
+          "text": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。"
+        }
+      ],
+      "expected_aspects": [
+        "判断10月20日属于戒严期",
+        "戒严期禁止一切野外用火",
+        "进入林区需办理入山证",
+        "防火检查人员权力"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L024",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "date_reasoning_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：10月20日在长春林区野外用火，是否处于森林防火戒严期？此时入山和用火规则是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "10月20日落在9月25日至10月31日的森林防火戒严期内。戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》，防火检查人员可检查人员和车辆、扣留不准携带的火种并制止无证人员入山。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第十五条",
+          "text": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。"
+        }
+      ],
+      "expected_aspects": [
+        "判断10月20日属于戒严期",
+        "戒严期禁止一切野外用火",
+        "进入林区需办理入山证",
+        "防火检查人员权力"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L025",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "date_reasoning_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：10月20日在长春林区野外用火，是否处于森林防火戒严期？此时入山和用火规则是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "10月20日落在9月25日至10月31日的森林防火戒严期内。戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》，防火检查人员可检查人员和车辆、扣留不准携带的火种并制止无证人员入山。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第十五条",
+          "text": "第十五条每年的3月1日至6月15日、9月10日至11月30日为森林防火期，其中4月1日至5月15日、9月25日至10月31日为森林防火戒严期。在森林防火期内，禁止在林区野外非生产用火，确需野外生产用火的，应当经县级以上林业行政主管部门批准。\n\n在森林防火戒严期内林区禁止一切野外用火，进入林区人员应当办理《入山证》。防火检查人员有权对进入林区人员和车辆进行检查，有权扣留不准携带的火种，有权制止无证人员入山，任何人不得拒绝检查。"
+        }
+      ],
+      "expected_aspects": [
+        "判断10月20日属于戒严期",
+        "戒严期禁止一切野外用火",
+        "进入林区需办理入山证",
+        "防火检查人员权力"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L026",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "threshold_reasoning_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：建设项目在长春需要使用0.5公顷林地时，应由哪一级人民政府审批？如果是1公顷呢？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "使用林地面积0.67公顷以下的，由县级人民政府审批；0.67公顷以上13.34公顷以下的，由市人民政府审批。因此0.5公顷由县级人民政府审批，1公顷由市人民政府审批。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十七条",
+          "text": "第二十七条非林业生产建设项目符合国家行政划拨方式使用国有林地的，实行占用制度；不符合国家行政划拨方式使用国有林地的，实行有偿使用制度；使用集体林地的，实行征用制度。\n\n需要使用林地的建设单位，应当向县级以上人民政府提出申请，经林业行政主管部门审核同意后，到土地行政主管部门办理用地审批手续，按照法定审批权限报人民政府批准。使用林地面积0.67公顷以下的，由县级人民政府审批；0.67公顷以上13.34公顷以下的，由市人民政府审批。\n\n建设项目需要使用的林地，应当根据总体设计一次性申请批准。"
+        }
+      ],
+      "expected_aspects": [
+        "0.67公顷以下县级审批",
+        "0.67至13.34公顷市级审批",
+        "0.5公顷对应县级",
+        "1公顷对应市级"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L027",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "threshold_reasoning_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：建设项目在长春需要使用0.5公顷林地时，应由哪一级人民政府审批？如果是1公顷呢？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "使用林地面积0.67公顷以下的，由县级人民政府审批；0.67公顷以上13.34公顷以下的，由市人民政府审批。因此0.5公顷由县级人民政府审批，1公顷由市人民政府审批。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十七条",
+          "text": "第二十七条非林业生产建设项目符合国家行政划拨方式使用国有林地的，实行占用制度；不符合国家行政划拨方式使用国有林地的，实行有偿使用制度；使用集体林地的，实行征用制度。\n\n需要使用林地的建设单位，应当向县级以上人民政府提出申请，经林业行政主管部门审核同意后，到土地行政主管部门办理用地审批手续，按照法定审批权限报人民政府批准。使用林地面积0.67公顷以下的，由县级人民政府审批；0.67公顷以上13.34公顷以下的，由市人民政府审批。\n\n建设项目需要使用的林地，应当根据总体设计一次性申请批准。"
+        }
+      ],
+      "expected_aspects": [
+        "0.67公顷以下县级审批",
+        "0.67至13.34公顷市级审批",
+        "0.5公顷对应县级",
+        "1公顷对应市级"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L028",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "threshold_reasoning_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：建设项目在长春需要使用0.5公顷林地时，应由哪一级人民政府审批？如果是1公顷呢？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "使用林地面积0.67公顷以下的，由县级人民政府审批；0.67公顷以上13.34公顷以下的，由市人民政府审批。因此0.5公顷由县级人民政府审批，1公顷由市人民政府审批。",
+      "expected_evidence": [
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十七条",
+          "text": "第二十七条非林业生产建设项目符合国家行政划拨方式使用国有林地的，实行占用制度；不符合国家行政划拨方式使用国有林地的，实行有偿使用制度；使用集体林地的，实行征用制度。\n\n需要使用林地的建设单位，应当向县级以上人民政府提出申请，经林业行政主管部门审核同意后，到土地行政主管部门办理用地审批手续，按照法定审批权限报人民政府批准。使用林地面积0.67公顷以下的，由县级人民政府审批；0.67公顷以上13.34公顷以下的，由市人民政府审批。\n\n建设项目需要使用的林地，应当根据总体设计一次性申请批准。"
+        }
+      ],
+      "expected_aspects": [
+        "0.67公顷以下县级审批",
+        "0.67至13.34公顷市级审批",
+        "0.5公顷对应县级",
+        "1公顷对应市级"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L029",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "fallback_procedure_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：绍兴物业项目已具备成立业主大会条件，但建设单位和业主委员会都没有报告，业主可以向谁申请，街道或乡镇应在多久内做什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "业主认为物业管理区域已具备成立业主大会法定条件的，可以向物业所在地街道办事处、乡镇人民政府申请成立业主大会；街道办事处、乡镇人民政府应当自收到申请之日起六十日内指导业主成立筹备组，筹备召开首次业主大会会议。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第十一条",
+          "text": "第十一条物业管理区域达到成立业主大会法定条件的，\n\n建设单位应当在十日内向物业所在地街道办事处、乡镇人民政府提出报告，并报送筹备首次业主大会会议所需的资料。\n\n业主认为物业管理区域已具备成立业主大会法定条件的，\n\n可以向物业所在地街道办事处、乡镇人民政府申请成立业主大会。\n\n街道办事处、乡镇人民政府应当自收到报告或者申请之日起六十日内指导业主成立业主大会筹备组（以下简称筹备组），\n\n筹备召开首次业主大会会议。\n\n— 5 —\n\n\f绍兴市地方性法规标准文本物业管理区域达到成立业主大会法定条件但建设单位、业主均未提出申请的，街道办事处、乡镇人民政府应当及时指导业主成立筹备组，筹备成立业主大会。"
+        }
+      ],
+      "expected_aspects": [
+        "业主可向街道办事处或乡镇人民政府申请",
+        "六十日内",
+        "指导成立筹备组",
+        "筹备首次业主大会会议"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L030",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "fallback_procedure_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：绍兴物业项目已具备成立业主大会条件，但建设单位和业主委员会都没有报告，业主可以向谁申请，街道或乡镇应在多久内做什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "业主认为物业管理区域已具备成立业主大会法定条件的，可以向物业所在地街道办事处、乡镇人民政府申请成立业主大会；街道办事处、乡镇人民政府应当自收到申请之日起六十日内指导业主成立筹备组，筹备召开首次业主大会会议。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第十一条",
+          "text": "第十一条物业管理区域达到成立业主大会法定条件的，\n\n建设单位应当在十日内向物业所在地街道办事处、乡镇人民政府提出报告，并报送筹备首次业主大会会议所需的资料。\n\n业主认为物业管理区域已具备成立业主大会法定条件的，\n\n可以向物业所在地街道办事处、乡镇人民政府申请成立业主大会。\n\n街道办事处、乡镇人民政府应当自收到报告或者申请之日起六十日内指导业主成立业主大会筹备组（以下简称筹备组），\n\n筹备召开首次业主大会会议。\n\n— 5 —\n\n\f绍兴市地方性法规标准文本物业管理区域达到成立业主大会法定条件但建设单位、业主均未提出申请的，街道办事处、乡镇人民政府应当及时指导业主成立筹备组，筹备成立业主大会。"
+        }
+      ],
+      "expected_aspects": [
+        "业主可向街道办事处或乡镇人民政府申请",
+        "六十日内",
+        "指导成立筹备组",
+        "筹备首次业主大会会议"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L031",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "fallback_procedure_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：绍兴物业项目已具备成立业主大会条件，但建设单位和业主委员会都没有报告，业主可以向谁申请，街道或乡镇应在多久内做什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "业主认为物业管理区域已具备成立业主大会法定条件的，可以向物业所在地街道办事处、乡镇人民政府申请成立业主大会；街道办事处、乡镇人民政府应当自收到申请之日起六十日内指导业主成立筹备组，筹备召开首次业主大会会议。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第十一条",
+          "text": "第十一条物业管理区域达到成立业主大会法定条件的，\n\n建设单位应当在十日内向物业所在地街道办事处、乡镇人民政府提出报告，并报送筹备首次业主大会会议所需的资料。\n\n业主认为物业管理区域已具备成立业主大会法定条件的，\n\n可以向物业所在地街道办事处、乡镇人民政府申请成立业主大会。\n\n街道办事处、乡镇人民政府应当自收到报告或者申请之日起六十日内指导业主成立业主大会筹备组（以下简称筹备组），\n\n筹备召开首次业主大会会议。\n\n— 5 —\n\n\f绍兴市地方性法规标准文本物业管理区域达到成立业主大会法定条件但建设单位、业主均未提出申请的，街道办事处、乡镇人民政府应当及时指导业主成立筹备组，筹备成立业主大会。"
+        }
+      ],
+      "expected_aspects": [
+        "业主可向街道办事处或乡镇人民政府申请",
+        "六十日内",
+        "指导成立筹备组",
+        "筹备首次业主大会会议"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L032",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "rectification_outcome_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：深圳建筑市场中，工程勘察、设计、施工等单位存在事故隐患，经责令整改后逾期拒不整改，会产生什么处理结果？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "工程勘察、设计、施工、监理、检测单位存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        }
+      ],
+      "expected_aspects": [
+        "适用主体",
+        "存在事故隐患",
+        "责令限期整改后逾期拒不整改或整改不合格",
+        "暂扣资质证书直至整改合格"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L033",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "rectification_outcome_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：深圳建筑市场中，工程勘察、设计、施工等单位存在事故隐患，经责令整改后逾期拒不整改，会产生什么处理结果？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "工程勘察、设计、施工、监理、检测单位存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        }
+      ],
+      "expected_aspects": [
+        "适用主体",
+        "存在事故隐患",
+        "责令限期整改后逾期拒不整改或整改不合格",
+        "暂扣资质证书直至整改合格"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L034",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "rectification_outcome_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：深圳建筑市场中，工程勘察、设计、施工等单位存在事故隐患，经责令整改后逾期拒不整改，会产生什么处理结果？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "工程勘察、设计、施工、监理、检测单位存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        }
+      ],
+      "expected_aspects": [
+        "适用主体",
+        "存在事故隐患",
+        "责令限期整改后逾期拒不整改或整改不合格",
+        "暂扣资质证书直至整改合格"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-L035",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "approval_exception_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：深圳政府投资建设的办公场所装修完成后未满八年确需重新装修，是否可以直接装修？需要什么前置条件？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "不能直接重新装修。政府投资建设的办公场所装修完成后八年内不得重新装修；确需重新装修的，应当经主管部门批准。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第十七条",
+          "text": "第十七条推行住宅一次性装修。鼓励新建住宅的建设单位直接向使用者提供装修成品房。\n\n政府投资建设的社会保障性住房应当实行一次性装修。\n\n政府投资建设的办公场所装修完成后八年内不得重新装修。确需重新装修的，应当经主管部门批准。"
+        }
+      ],
+      "expected_aspects": [
+        "八年内不得重新装修",
+        "确需重新装修",
+        "应经主管部门批准"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-L036",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "approval_exception_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：深圳政府投资建设的办公场所装修完成后未满八年确需重新装修，是否可以直接装修？需要什么前置条件？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "不能直接重新装修。政府投资建设的办公场所装修完成后八年内不得重新装修；确需重新装修的，应当经主管部门批准。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第十七条",
+          "text": "第十七条推行住宅一次性装修。鼓励新建住宅的建设单位直接向使用者提供装修成品房。\n\n政府投资建设的社会保障性住房应当实行一次性装修。\n\n政府投资建设的办公场所装修完成后八年内不得重新装修。确需重新装修的，应当经主管部门批准。"
+        }
+      ],
+      "expected_aspects": [
+        "八年内不得重新装修",
+        "确需重新装修",
+        "应经主管部门批准"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-L037",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "approval_exception_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：深圳政府投资建设的办公场所装修完成后未满八年确需重新装修，是否可以直接装修？需要什么前置条件？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "不能直接重新装修。政府投资建设的办公场所装修完成后八年内不得重新装修；确需重新装修的，应当经主管部门批准。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第十七条",
+          "text": "第十七条推行住宅一次性装修。鼓励新建住宅的建设单位直接向使用者提供装修成品房。\n\n政府投资建设的社会保障性住房应当实行一次性装修。\n\n政府投资建设的办公场所装修完成后八年内不得重新装修。确需重新装修的，应当经主管部门批准。"
+        }
+      ],
+      "expected_aspects": [
+        "八年内不得重新装修",
+        "确需重新装修",
+        "应经主管部门批准"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-L038",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "violation_to_penalty_condition_first_rewrite",
+      "query": "请先判断适用条件，再回答：长春屠宰加工厂给畜禽肉品注水且违法所得难以计算时，应如何处罚？情节严重拒不改正会怎样？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市肉品管理条例__.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "肉管办应没收注水或者注入其他物质的肉品和违法所得；违法所得难以计算的，处五百元以上五千元以下罚款。情节严重、拒不改正的，吊销《畜禽屠宰加工许可证》。",
+      "expected_evidence": [
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二十条",
+          "text": "第二十条屠宰加工厂屠宰的畜禽不得注水或者注入其他物质。屠宰后的畜禽肉品不得带有污血、毛、粪污、伤斑、病灶及有害腺体，并应当置于阴凉、清洁之处，不得直接落地。\n\n食用血必须采自健康畜禽，采集设施和流程应当符合卫生要求。"
+        }
+      ],
+      "expected_aspects": [
+        "没收注水肉品和违法所得",
+        "违法所得难以计算罚款五百元以上五千元以下",
+        "情节严重拒不改正吊销许可证"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-L039",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "violation_to_penalty_conclusion_and_basis_rewrite",
+      "query": "把结论和法规依据分开说明：长春屠宰加工厂给畜禽肉品注水且违法所得难以计算时，应如何处罚？情节严重拒不改正会怎样？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市肉品管理条例__.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "肉管办应没收注水或者注入其他物质的肉品和违法所得；违法所得难以计算的，处五百元以上五千元以下罚款。情节严重、拒不改正的，吊销《畜禽屠宰加工许可证》。",
+      "expected_evidence": [
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二十条",
+          "text": "第二十条屠宰加工厂屠宰的畜禽不得注水或者注入其他物质。屠宰后的畜禽肉品不得带有污血、毛、粪污、伤斑、病灶及有害腺体，并应当置于阴凉、清洁之处，不得直接落地。\n\n食用血必须采自健康畜禽，采集设施和流程应当符合卫生要求。"
+        }
+      ],
+      "expected_aspects": [
+        "没收注水肉品和违法所得",
+        "违法所得难以计算罚款五百元以上五千元以下",
+        "情节严重拒不改正吊销许可证"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-L040",
+      "category": "logical_reasoning",
+      "difficulty_category": "逻辑推理类",
+      "difficulty_level": "medium",
+      "subtype": "violation_to_penalty_scenario_reasoning_rewrite",
+      "query": "如果用户描述的事实前提成立，请按条款推导处理结果：长春屠宰加工厂给畜禽肉品注水且违法所得难以计算时，应如何处罚？情节严重拒不改正会怎样？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "长春市肉品管理条例__.docx"
+      ],
+      "expected_source_policy": "hard_lock",
+      "expected_answer": "肉管办应没收注水或者注入其他物质的肉品和违法所得；违法所得难以计算的，处五百元以上五千元以下罚款。情节严重、拒不改正的，吊销《畜禽屠宰加工许可证》。",
+      "expected_evidence": [
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二十条",
+          "text": "第二十条屠宰加工厂屠宰的畜禽不得注水或者注入其他物质。屠宰后的畜禽肉品不得带有污血、毛、粪污、伤斑、病灶及有害腺体，并应当置于阴凉、清洁之处，不得直接落地。\n\n食用血必须采自健康畜禽，采集设施和流程应当符合卫生要求。"
+        }
+      ],
+      "expected_aspects": [
+        "没收注水肉品和违法所得",
+        "违法所得难以计算罚款五百元以上五千元以下",
+        "情节严重拒不改正吊销许可证"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 3
+    },
+    {
+      "id": "DL-M014",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "scope_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：比较《林芝市出租房安全管理条例》和《聊城市养犬管理条例》的适用范围：各自覆盖什么管理活动，有哪些排除或特别说明？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应分别说明：林芝条例适用于本市行政区域内出租房租赁、治安、消防等安全管理及监督活动，并定义出租房且排除民宿、旅馆业客房；聊城条例适用于本市行政区域内养犬行为及相关管理活动，同时说明军用、警用犬不适用，导盲犬、搜救犬和特殊单位犬只有特别规定的依其规定。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二条",
+          "text": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二条",
+          "text": "第二条本市行政区域内的养犬行为以及相关的管理活动，适用本条例。\n\n军用、警用犬只的管理不适用本条例。导盲犬、搜救犬和科研机构、动物园、专业表演团队等单位因特殊需要饲养犬只的管理，法律、法规另有规定的，依照其规定。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝出租房适用范围",
+        "林芝出租房定义和排除",
+        "聊城养犬适用范围",
+        "聊城军警犬排除",
+        "导盲犬等特别说明"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M015",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "scope_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：比较《林芝市出租房安全管理条例》和《聊城市养犬管理条例》的适用范围：各自覆盖什么管理活动，有哪些排除或特别说明？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应分别说明：林芝条例适用于本市行政区域内出租房租赁、治安、消防等安全管理及监督活动，并定义出租房且排除民宿、旅馆业客房；聊城条例适用于本市行政区域内养犬行为及相关管理活动，同时说明军用、警用犬不适用，导盲犬、搜救犬和特殊单位犬只有特别规定的依其规定。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第二条",
+          "text": "第二条本市行政区域内出租房的租赁、治安、消防等安全管理及其监督活动，适用本条例。\n\n本条例所称出租房，是指出租人将其房屋依照约定交付承租人使用、收益，承租人支付租金，用于居住、生产经营的各类房屋；不包括民宿、旅馆业客房。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二条",
+          "text": "第二条本市行政区域内的养犬行为以及相关的管理活动，适用本条例。\n\n军用、警用犬只的管理不适用本条例。导盲犬、搜救犬和科研机构、动物园、专业表演团队等单位因特殊需要饲养犬只的管理，法律、法规另有规定的，依照其规定。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝出租房适用范围",
+        "林芝出租房定义和排除",
+        "聊城养犬适用范围",
+        "聊城军警犬排除",
+        "导盲犬等特别说明"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M016",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "department_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：对比林芝出租房安全管理和聊城养犬管理中公安机关的职责差异。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "林芝条例中公安机关负责出租房治安的统一监督管理；聊城条例中公安机关是养犬管理主管部门，负责犬只信息登记、签注、养犬信息系统、犬只收容救助场所管理，以及查处禁养限养、扰民、虐待遗弃、恐吓伤人等违法行为并组织捕捉流浪犬等。答案应体现两者一个偏出租房治安监督，一个偏犬只登记和养犬执法综合管理。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关是养犬管理的主管部门，负责犬只信息登记、签注，建立养犬信息管理系统，管理犬只收容救助场所，监督管理犬只展览、表演等大型活动，查处违反犬只禁养、限养、圈养拴养规定和犬只干扰他人正常生活、虐待或者遗弃犬只、放任犬只恐吓他人、驱使犬只伤害他人等违法行为，组织捕捉流浪犬、捕杀狂犬和正在伤人的犬只。\n\n农业农村部门负责组织实施并监督管理犬只免疫、发放狂犬病免疫证、植入电子芯片，监督管理兽用狂犬病疫苗，监测犬类狂犬病疫情、犬只检疫，查处无狂犬病免疫证养犬等。\n\n城市管理部门负责监督城市公园、广场、绿地等公共场所犬只禁入标识的设置，查处养犬影响市容和环境卫生，占用住宅小区公用区域养犬，违法在住宅小区或者占用公共场所从事犬只经营活动，违反携犬出户、犬只运送规定等行为。\n\n市场主体登记部门负责犬只经营、诊疗机构的登记注册。\n\n市场监督管理部门负责犬只交易活动的监督管理。\n\n卫生健康部门负责人用狂犬病疫苗的供应、接种和病人的诊治，人患狂犬病疫情的监测和防治，狂犬病预防的健康教育等工作。\n\n住房城乡建设部门负责监督指导物业服务企业参与养犬管理工作。\n\n财政部门负责养犬管理工作的经费保障。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝公安职责",
+        "聊城公安主管部门定位",
+        "聊城登记签注和系统职责",
+        "聊城违法行为查处职责",
+        "差异归纳"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M017",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "department_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：对比林芝出租房安全管理和聊城养犬管理中公安机关的职责差异。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "林芝条例中公安机关负责出租房治安的统一监督管理；聊城条例中公安机关是养犬管理主管部门，负责犬只信息登记、签注、养犬信息系统、犬只收容救助场所管理，以及查处禁养限养、扰民、虐待遗弃、恐吓伤人等违法行为并组织捕捉流浪犬等。答案应体现两者一个偏出租房治安监督，一个偏犬只登记和养犬执法综合管理。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关是养犬管理的主管部门，负责犬只信息登记、签注，建立养犬信息管理系统，管理犬只收容救助场所，监督管理犬只展览、表演等大型活动，查处违反犬只禁养、限养、圈养拴养规定和犬只干扰他人正常生活、虐待或者遗弃犬只、放任犬只恐吓他人、驱使犬只伤害他人等违法行为，组织捕捉流浪犬、捕杀狂犬和正在伤人的犬只。\n\n农业农村部门负责组织实施并监督管理犬只免疫、发放狂犬病免疫证、植入电子芯片，监督管理兽用狂犬病疫苗，监测犬类狂犬病疫情、犬只检疫，查处无狂犬病免疫证养犬等。\n\n城市管理部门负责监督城市公园、广场、绿地等公共场所犬只禁入标识的设置，查处养犬影响市容和环境卫生，占用住宅小区公用区域养犬，违法在住宅小区或者占用公共场所从事犬只经营活动，违反携犬出户、犬只运送规定等行为。\n\n市场主体登记部门负责犬只经营、诊疗机构的登记注册。\n\n市场监督管理部门负责犬只交易活动的监督管理。\n\n卫生健康部门负责人用狂犬病疫苗的供应、接种和病人的诊治，人患狂犬病疫情的监测和防治，狂犬病预防的健康教育等工作。\n\n住房城乡建设部门负责监督指导物业服务企业参与养犬管理工作。\n\n财政部门负责养犬管理工作的经费保障。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝公安职责",
+        "聊城公安主管部门定位",
+        "聊城登记签注和系统职责",
+        "聊城违法行为查处职责",
+        "差异归纳"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M018",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "deadline_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：比较林芝出租房租赁备案和聊城重点管理区个人养犬登记的办理期限与办理机关。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "林芝出租人应自签订房屋租赁合同之日起三十日内，到出租房所在地住房城乡建设部门办理租赁登记备案。聊城重点管理区个人养犬的，养犬人应为完全民事行为能力人，并自取得犬只狂犬病免疫证后五日内，携带犬只到公安机关指定的犬只信息登记场所办理登记。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第十七条",
+          "text": "第十七条出租人应当自签订房屋租赁合同之日起三十日内，到出租房所在地的住房城乡建设部门办理出租房租赁登记备案。\n\n公安机关在办理流动人口居住登记时，应当告知出租人及时办理出租房租赁登记备案。\n\n第三章治安安全管理"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十四条",
+          "text": "第十四条重点管理区内个人养犬的，养犬人应当为完全民事行为能力人。\n\n养犬人应当自取得犬只狂犬病免疫证后五日内，携带犬只到公安机关指定的犬只信息登记场所办理犬只信息登记，并提交下列材料：\n\n（一）居民身份证、户口本或者居住证；\n\n（二）房屋产权证明或者房屋租赁证明；\n\n（三）狂犬病免疫证。\n\n公安机关在办理犬只信息登记时，应当采集犬只的品种、出生时间、主要体貌特征等信息。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝三十日内",
+        "林芝住房城乡建设部门",
+        "聊城取得免疫证后五日内",
+        "聊城公安机关指定登记场所",
+        "聊城完全民事行为能力人要求"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M019",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "deadline_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：比较林芝出租房租赁备案和聊城重点管理区个人养犬登记的办理期限与办理机关。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "林芝出租人应自签订房屋租赁合同之日起三十日内，到出租房所在地住房城乡建设部门办理租赁登记备案。聊城重点管理区个人养犬的，养犬人应为完全民事行为能力人，并自取得犬只狂犬病免疫证后五日内，携带犬只到公安机关指定的犬只信息登记场所办理登记。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第十七条",
+          "text": "第十七条出租人应当自签订房屋租赁合同之日起三十日内，到出租房所在地的住房城乡建设部门办理出租房租赁登记备案。\n\n公安机关在办理流动人口居住登记时，应当告知出租人及时办理出租房租赁登记备案。\n\n第三章治安安全管理"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十四条",
+          "text": "第十四条重点管理区内个人养犬的，养犬人应当为完全民事行为能力人。\n\n养犬人应当自取得犬只狂犬病免疫证后五日内，携带犬只到公安机关指定的犬只信息登记场所办理犬只信息登记，并提交下列材料：\n\n（一）居民身份证、户口本或者居住证；\n\n（二）房屋产权证明或者房屋租赁证明；\n\n（三）狂犬病免疫证。\n\n公安机关在办理犬只信息登记时，应当采集犬只的品种、出生时间、主要体貌特征等信息。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝三十日内",
+        "林芝住房城乡建设部门",
+        "聊城取得免疫证后五日内",
+        "聊城公安机关指定登记场所",
+        "聊城完全民事行为能力人要求"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M020",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "information_system_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：综合林芝出租房、聊城养犬、绍兴物业三个条例，分别说明其信息平台或电子档案要记录/支撑哪些事项。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应覆盖三类平台：林芝出租房信息服务与监管平台用于采集、导入、更新出租房相关信息，并共享租赁备案、治安、消防、经营主体登记、公共卫生服务、信用和处罚等信息；聊城养犬信息管理系统生成犬只电子档案，记载养犬人、犬只品种体貌照片、登记证和签注变更注销、免疫、费用缴纳、违法记录等事项；绍兴物业管理电子信息平台用于交付统计、业主意见征求和投票、信用公示、服务规范和成本监测、法律政策咨询、纠纷投诉等。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第三十二条",
+          "text": "第三十二条市人民政府负责出租房信息服务与监管平台的开发建设、管理与维护。有关部门和单位，乡镇人民政府、街道办事处，以及公共服务机构，根据各自职责，采集、导入、更新出租房相关信息，实现出租房租赁备案、治安、消防、经营主体登记、公共卫生服务、信用和处罚等行政管理和公共服务信息共享。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十九条",
+          "text": "第十九条养犬信息管理系统应当生成犬只信息电子档案，记载下列事项:\n\n（一）养犬人姓名（名称）、住所（驻地）、联系方式；\n\n（二）犬只的品种、出生时间、主要体貌特征和照片；\n\n（三）犬只信息登记证号码、发放时间、签注、变更、注销等情况，以及犬只信息登记证、犬只标识牌、电子芯片的补发、重新植入等情况；\n\n（四）犬只免疫情况；\n\n（五）养犬违法信息；\n\n（六）其他应当记载的事项。"
+        },
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第七条",
+          "text": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝平台信息共享范围",
+        "聊城犬只电子档案事项",
+        "绍兴物业平台用途",
+        "三文档均须引用"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M021",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "information_system_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：综合林芝出租房、聊城养犬、绍兴物业三个条例，分别说明其信息平台或电子档案要记录/支撑哪些事项。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应覆盖三类平台：林芝出租房信息服务与监管平台用于采集、导入、更新出租房相关信息，并共享租赁备案、治安、消防、经营主体登记、公共卫生服务、信用和处罚等信息；聊城养犬信息管理系统生成犬只电子档案，记载养犬人、犬只品种体貌照片、登记证和签注变更注销、免疫、费用缴纳、违法记录等事项；绍兴物业管理电子信息平台用于交付统计、业主意见征求和投票、信用公示、服务规范和成本监测、法律政策咨询、纠纷投诉等。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第三十二条",
+          "text": "第三十二条市人民政府负责出租房信息服务与监管平台的开发建设、管理与维护。有关部门和单位，乡镇人民政府、街道办事处，以及公共服务机构，根据各自职责，采集、导入、更新出租房相关信息，实现出租房租赁备案、治安、消防、经营主体登记、公共卫生服务、信用和处罚等行政管理和公共服务信息共享。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第十九条",
+          "text": "第十九条养犬信息管理系统应当生成犬只信息电子档案，记载下列事项:\n\n（一）养犬人姓名（名称）、住所（驻地）、联系方式；\n\n（二）犬只的品种、出生时间、主要体貌特征和照片；\n\n（三）犬只信息登记证号码、发放时间、签注、变更、注销等情况，以及犬只信息登记证、犬只标识牌、电子芯片的补发、重新植入等情况；\n\n（四）犬只免疫情况；\n\n（五）养犬违法信息；\n\n（六）其他应当记载的事项。"
+        },
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第七条",
+          "text": "第七条市住房和城乡建设行政主管部门应当建设统一的物业管理电子信息平台，用于物业交付统计、业主意见征求和投票、物业服务企业信用状况公示、物业服务规范和物业服务成本监测信息公告、物业管理法律法规和政策咨询、物业纠纷投诉处理等相关事项。\n\n县（市、区）住房和城乡建设行政主管部门应当会同街道办事处、乡镇人民政府依托物业管理电子信息平台对物业服务\n\n— 3 —\n\n\f绍兴市地方性法规标准文本人的基本情况、服务情况、投诉举报情况等事项进行动态管理，\n\n定期开展物业服务人服务质量满意度测评，落实物业服务人及其项目负责人信用管理制度，健全物业服务评价体系，实行信用记分管理。信用评价结果依法与招投标管理、日常监督检查、\n\n激励性评价等挂钩。满意度测评结果和信用评价结果应当向社会公开。\n\n业主、业主委员会、物业服务人可以利用物业管理电子信息平台开展物业管理相关工作。使用平台进行投票决策的，应当依法保障投票人的权利。\n\n市住房和城乡建设行政主管部门应当制定物业管理电子信息平台的使用和管理制度，维护平台正常运行，保障业主隐私和平台信息数据安全。自然资源和规划、市场监督管理、综合行政执法等有关行政主管部门应当配合提供物业管理相关的基础数据和信息，发挥数据集成效应。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝平台信息共享范围",
+        "聊城犬只电子档案事项",
+        "绍兴物业平台用途",
+        "三文档均须引用"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M022",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "penalty_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：比较聊城未按规定办理犬只信息登记、长春肉品注水、长春散装水泥现场搅拌三类违法行为的处罚方式和罚款幅度。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市肉品管理条例__.docx",
+        "长春市散装水泥管理条例_2018-10-10_2018-11-01.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应分别说明：聊城未按规定办理犬只信息登记先责令限期补办，逾期仍不登记的个人罚二百元以上一千元以下、单位罚一千元以上二千元以下，并可没收犬只；长春肉品注水由肉管办没收注水肉品和违法所得，违法所得难以计算的罚五百元以上五千元以下，情节严重拒不改正吊销许可证；长春散装水泥现场搅拌混凝土按每立方米一百元、总额不超过五万元罚款，现场搅拌砂浆按每立方米一百元、总额不超过三万元罚款。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第三十八条",
+          "text": "第三十八条违反本条例规定，有下列行为之一的，由公安机关予以处罚:\n\n（一）不按规定办理犬只信息登记的，责令限期补办，逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，可以并处没收犬只；\n\n（二）不按规定签注、变更、注销、补办犬只信息登记证或者未按规定补办犬只标识牌的，责令改正；拒不改正的，对个人处二百元以上五百元以下罚款，对单位处五百元以上一千元以下罚款；\n\n（三）违反规定在重点管理区内饲养烈性犬和大型犬只的，没收犬只，并对个人每只处五百元以上二千元以下罚款，对单位每只处二千元以上五千元以下罚款；\n\n（四）饲养犬只超过限养数量的，责令改正；拒不改正的，没收超养犬只，每超养一只并处二百元以上五百元以下罚款；\n\n（五）重点管理区内单位饲养犬只未圈养或者拴养的，责令改正，每只处五百元罚款；一般管理区内饲养烈性犬、大型犬未圈养或者拴养的，责令改正，每只处二百元罚款；\n\n（六）虐待、遗弃犬只的，责令改正，并处二百元以上五百元以下罚款；\n\n（七）饲养犬只干扰他人正常生活的，给予警告，责令改正；拒不改正的，处二百元以上五百元以下罚款；\n\n（八）放任犬只恐吓他人的，处二百元以上五百元以下罚款；\n\n（九）放任犬只伤害他人，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十）驱使犬只伤害他人的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十一）组织、参与利用犬只进行赌博性质活动，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十二）伪造、变造或买卖养犬管理相关证件的，依照《中华人民共和国治安管理处罚法》的规定予以处罚。\n\n有前款第（九）至第（十二）项行为，构成犯罪的，依法追究刑事责任。"
+        },
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二十条",
+          "text": "第二十条屠宰加工厂屠宰的畜禽不得注水或者注入其他物质。屠宰后的畜禽肉品不得带有污血、毛、粪污、伤斑、病灶及有害腺体，并应当置于阴凉、清洁之处，不得直接落地。\n\n食用血必须采自健康畜禽，采集设施和流程应当符合卫生要求。"
+        },
+        {
+          "source": "长春市散装水泥管理条例_2018-10-10_2018-11-01.pdf",
+          "title": "长春市散装水泥管理条例",
+          "clause": "第十五条",
+          "text": "第十五条修改为：“属于下列情形之一的，可以在施工现场搅拌混凝土或者砂浆：\n\n“（一） 混凝土或者砂浆累计使用总量一百五十立方米以下的；\n\n6-\n\n-\n\n\f“（二） 因建设工程特殊需要，本市预拌混凝土、预拌砂浆生产企业无法生产的；\n\n“（三） 因道路交通条件制约，预拌混凝土、预拌砂浆专用运输车辆无法到达施工现场的；\n\n“（四） 施工现场三十公里以内没有预拌混凝土、预拌砂浆供应的；\n\n“（五） 因抢险、抢修等其他特殊原因确需在施工现场搅拌的。\n\n“因前款 （一） 至 （四） 项原因，在施工现场搅拌混凝土或者砂浆的，应当向工程所在地的散装水泥主管部门或者散装水泥管理机构备案。\n\n“现场搅拌混凝土和砂浆的，其粉尘、噪声、废水等污染物排放应当符合国家环境保护的标准。”\n\n十四、删除"
+        }
+      ],
+      "expected_aspects": [
+        "聊城犬只登记处罚",
+        "长春肉品注水处罚",
+        "长春散装水泥现场搅拌处罚",
+        "罚款幅度对比"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M023",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "penalty_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：比较聊城未按规定办理犬只信息登记、长春肉品注水、长春散装水泥现场搅拌三类违法行为的处罚方式和罚款幅度。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市肉品管理条例__.docx",
+        "长春市散装水泥管理条例_2018-10-10_2018-11-01.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应分别说明：聊城未按规定办理犬只信息登记先责令限期补办，逾期仍不登记的个人罚二百元以上一千元以下、单位罚一千元以上二千元以下，并可没收犬只；长春肉品注水由肉管办没收注水肉品和违法所得，违法所得难以计算的罚五百元以上五千元以下，情节严重拒不改正吊销许可证；长春散装水泥现场搅拌混凝土按每立方米一百元、总额不超过五万元罚款，现场搅拌砂浆按每立方米一百元、总额不超过三万元罚款。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第三十八条",
+          "text": "第三十八条违反本条例规定，有下列行为之一的，由公安机关予以处罚:\n\n（一）不按规定办理犬只信息登记的，责令限期补办，逾期仍不登记的，对个人处二百元以上一千元以下罚款，对单位处一千元以上二千元以下罚款，可以并处没收犬只；\n\n（二）不按规定签注、变更、注销、补办犬只信息登记证或者未按规定补办犬只标识牌的，责令改正；拒不改正的，对个人处二百元以上五百元以下罚款，对单位处五百元以上一千元以下罚款；\n\n（三）违反规定在重点管理区内饲养烈性犬和大型犬只的，没收犬只，并对个人每只处五百元以上二千元以下罚款，对单位每只处二千元以上五千元以下罚款；\n\n（四）饲养犬只超过限养数量的，责令改正；拒不改正的，没收超养犬只，每超养一只并处二百元以上五百元以下罚款；\n\n（五）重点管理区内单位饲养犬只未圈养或者拴养的，责令改正，每只处五百元罚款；一般管理区内饲养烈性犬、大型犬未圈养或者拴养的，责令改正，每只处二百元罚款；\n\n（六）虐待、遗弃犬只的，责令改正，并处二百元以上五百元以下罚款；\n\n（七）饲养犬只干扰他人正常生活的，给予警告，责令改正；拒不改正的，处二百元以上五百元以下罚款；\n\n（八）放任犬只恐吓他人的，处二百元以上五百元以下罚款；\n\n（九）放任犬只伤害他人，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十）驱使犬只伤害他人的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十一）组织、参与利用犬只进行赌博性质活动，构成违反治安管理行为的，依照《中华人民共和国治安管理处罚法》的规定予以处罚；\n\n（十二）伪造、变造或买卖养犬管理相关证件的，依照《中华人民共和国治安管理处罚法》的规定予以处罚。\n\n有前款第（九）至第（十二）项行为，构成犯罪的，依法追究刑事责任。"
+        },
+        {
+          "source": "长春市肉品管理条例__.docx",
+          "title": "长春市肉品管理条例",
+          "clause": "第二十条",
+          "text": "第二十条屠宰加工厂屠宰的畜禽不得注水或者注入其他物质。屠宰后的畜禽肉品不得带有污血、毛、粪污、伤斑、病灶及有害腺体，并应当置于阴凉、清洁之处，不得直接落地。\n\n食用血必须采自健康畜禽，采集设施和流程应当符合卫生要求。"
+        },
+        {
+          "source": "长春市散装水泥管理条例_2018-10-10_2018-11-01.pdf",
+          "title": "长春市散装水泥管理条例",
+          "clause": "第十五条",
+          "text": "第十五条修改为：“属于下列情形之一的，可以在施工现场搅拌混凝土或者砂浆：\n\n“（一） 混凝土或者砂浆累计使用总量一百五十立方米以下的；\n\n6-\n\n-\n\n\f“（二） 因建设工程特殊需要，本市预拌混凝土、预拌砂浆生产企业无法生产的；\n\n“（三） 因道路交通条件制约，预拌混凝土、预拌砂浆专用运输车辆无法到达施工现场的；\n\n“（四） 施工现场三十公里以内没有预拌混凝土、预拌砂浆供应的；\n\n“（五） 因抢险、抢修等其他特殊原因确需在施工现场搅拌的。\n\n“因前款 （一） 至 （四） 项原因，在施工现场搅拌混凝土或者砂浆的，应当向工程所在地的散装水泥主管部门或者散装水泥管理机构备案。\n\n“现场搅拌混凝土和砂浆的，其粉尘、噪声、废水等污染物排放应当符合国家环境保护的标准。”\n\n十四、删除"
+        }
+      ],
+      "expected_aspects": [
+        "聊城犬只登记处罚",
+        "长春肉品注水处罚",
+        "长春散装水泥现场搅拌处罚",
+        "罚款幅度对比"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M024",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "governance_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：比较林芝出租房、聊城养犬、绍兴物业三个场景中基层组织或社区主体承担的协助职责。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应指出：林芝乡镇人民政府、街道办事处按属地管理做好出租房安全管理；聊城社区、居（村）民委员会、业主委员会协助宣传教育，可制定养犬公约、划定遛犬区域和时间并监督执行；绍兴居（村）民委员会指导监督业主大会和业主委员会，协助街道办事处、乡镇人民政府做好物业管理，引导业主参与，调解纠纷，协调物业管理与社区建设。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第六条",
+          "text": "第六条乡镇人民政府、街道办事处应当按照属地管理原则做好出租房安全管理工作。\n\n村（居）民委员会按照网格化服务管理要求，协助乡镇、街道和有关部门做好出租房安全管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第六条",
+          "text": "第六条社区、居（村）民委员会、业主委员会应当协助相关管理部门开展依法、文明养犬的宣传教育，可以就本区域内有关养犬事项制定公约，划定允许遛犬的区域和时间，设立标识并监督执行，引导、督促养犬人依法养犬、文明养犬。\n\n物业服务企业应当对服务区域内违法养犬行为予以制止，并向有关行政管理部门报告。\n\n鼓励养犬协会、动物保护组织等社会组织依法参与养犬管理活动，协助有关部门做好养犬管理工作。\n\n新闻、出版、广播、电视、报刊、网络等媒体应当加强对文明养犬知识的免费公益宣传，引导养犬人依法、文明养犬。"
+        },
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第六条",
+          "text": "第六条居（村）民委员会应当指导、监督业主大会和业主委员会依法履行职责，协助有关行政主管部门和街道办事处、\n\n乡镇人民政府做好物业管理工作，引导业主参与支持物业管理，\n\n调解物业管理纠纷，协调推进物业管理与社区建设。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝属地管理",
+        "聊城社区和业委会养犬协助",
+        "绍兴居村委物业协助",
+        "基层治理差异"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M025",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "governance_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：比较林芝出租房、聊城养犬、绍兴物业三个场景中基层组织或社区主体承担的协助职责。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应指出：林芝乡镇人民政府、街道办事处按属地管理做好出租房安全管理；聊城社区、居（村）民委员会、业主委员会协助宣传教育，可制定养犬公约、划定遛犬区域和时间并监督执行；绍兴居（村）民委员会指导监督业主大会和业主委员会，协助街道办事处、乡镇人民政府做好物业管理，引导业主参与，调解纠纷，协调物业管理与社区建设。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第六条",
+          "text": "第六条乡镇人民政府、街道办事处应当按照属地管理原则做好出租房安全管理工作。\n\n村（居）民委员会按照网格化服务管理要求，协助乡镇、街道和有关部门做好出租房安全管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第六条",
+          "text": "第六条社区、居（村）民委员会、业主委员会应当协助相关管理部门开展依法、文明养犬的宣传教育，可以就本区域内有关养犬事项制定公约，划定允许遛犬的区域和时间，设立标识并监督执行，引导、督促养犬人依法养犬、文明养犬。\n\n物业服务企业应当对服务区域内违法养犬行为予以制止，并向有关行政管理部门报告。\n\n鼓励养犬协会、动物保护组织等社会组织依法参与养犬管理活动，协助有关部门做好养犬管理工作。\n\n新闻、出版、广播、电视、报刊、网络等媒体应当加强对文明养犬知识的免费公益宣传，引导养犬人依法、文明养犬。"
+        },
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第六条",
+          "text": "第六条居（村）民委员会应当指导、监督业主大会和业主委员会依法履行职责，协助有关行政主管部门和街道办事处、\n\n乡镇人民政府做好物业管理工作，引导业主参与支持物业管理，\n\n调解物业管理纠纷，协调推进物业管理与社区建设。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝属地管理",
+        "聊城社区和业委会养犬协助",
+        "绍兴居村委物业协助",
+        "基层治理差异"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M026",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "construction_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：对比深圳建筑市场严重违法行为处理规定、深圳建设工程质量管理条例、深圳建筑废弃物减排与利用条例中与建设单位或工程参与单位相关的义务。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应分别引用三份深圳文件：建筑市场严重违法行为处理规定要求承接建设工程的勘察、设计、施工、监理、检测、造价咨询、招标代理等单位及注册执业人员向市建设行政主管部门申报信息并建立信用档案；建设工程质量管理条例第十五条应说明其列明的工程质量相关行为要求；建筑废弃物条例要求推行住宅一次性装修，政府投资社会保障性住房应一次性装修，政府投资办公场所装修完成后八年内不得重新装修，确需重新装修需经主管部门批准。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第八条",
+          "text": "第八条在本市承接建设工程的勘察、设计、施工、监理、检测、造价咨询、招标代理等单位以及工程建设注册执业人员，应当向市建设行政主管部门申报信息，由市建设行政主管部门建立信用档案。"
+        },
+        {
+          "source": "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+          "title": "深圳市建设工程质量管理条例",
+          "clause": "第十五条",
+          "text": "第十五条建设单位应当将工程发包给具有相应资质等级的单位。建设单位不得将建设工程肢解发包，不得迫使承包方以低于成本的价格竞标，不得压缩合理工期。"
+        },
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第十七条",
+          "text": "第十七条推行住宅一次性装修。鼓励新建住宅的建设单位直接向使用者提供装修成品房。\n\n政府投资建设的社会保障性住房应当实行一次性装修。\n\n政府投资建设的办公场所装修完成后八年内不得重新装修。确需重新装修的，应当经主管部门批准。"
+        }
+      ],
+      "expected_aspects": [
+        "建筑市场信用档案申报",
+        "建设工程质量义务",
+        "建筑废弃物一次性装修",
+        "三份深圳文件均须引用"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M027",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "construction_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：对比深圳建筑市场严重违法行为处理规定、深圳建设工程质量管理条例、深圳建筑废弃物减排与利用条例中与建设单位或工程参与单位相关的义务。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应分别引用三份深圳文件：建筑市场严重违法行为处理规定要求承接建设工程的勘察、设计、施工、监理、检测、造价咨询、招标代理等单位及注册执业人员向市建设行政主管部门申报信息并建立信用档案；建设工程质量管理条例第十五条应说明其列明的工程质量相关行为要求；建筑废弃物条例要求推行住宅一次性装修，政府投资社会保障性住房应一次性装修，政府投资办公场所装修完成后八年内不得重新装修，确需重新装修需经主管部门批准。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第八条",
+          "text": "第八条在本市承接建设工程的勘察、设计、施工、监理、检测、造价咨询、招标代理等单位以及工程建设注册执业人员，应当向市建设行政主管部门申报信息，由市建设行政主管部门建立信用档案。"
+        },
+        {
+          "source": "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+          "title": "深圳市建设工程质量管理条例",
+          "clause": "第十五条",
+          "text": "第十五条建设单位应当将工程发包给具有相应资质等级的单位。建设单位不得将建设工程肢解发包，不得迫使承包方以低于成本的价格竞标，不得压缩合理工期。"
+        },
+        {
+          "source": "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx",
+          "title": "深圳市建筑废弃物减排与利用条例",
+          "clause": "第十七条",
+          "text": "第十七条推行住宅一次性装修。鼓励新建住宅的建设单位直接向使用者提供装修成品房。\n\n政府投资建设的社会保障性住房应当实行一次性装修。\n\n政府投资建设的办公场所装修完成后八年内不得重新装修。确需重新装修的，应当经主管部门批准。"
+        }
+      ],
+      "expected_aspects": [
+        "建筑市场信用档案申报",
+        "建设工程质量义务",
+        "建筑废弃物一次性装修",
+        "三份深圳文件均须引用"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M028",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "culture_resource_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：比较绍兴浙东唐诗之路文化资源保护与陵水非物质文化遗产保护中，政府或主管部门在保护规划方面的职责。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市浙东唐诗之路文化资源保护和利用条例_2023-04-24_2023-05-01.pdf",
+        "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应说明绍兴条例第十条中关于浙东唐诗之路文化资源保护和利用相关规划、保护名录或保护措施的要求；陵水条例要求自治县人民政府文化主管部门会同有关部门编制非物质文化遗产保护规划，报自治县人民政府批准后组织实施。答案应体现一个面向区域文化资源保护利用，一个面向非遗保护规划。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市浙东唐诗之路文化资源保护和利用条例_2023-04-24_2023-05-01.pdf",
+          "title": "绍兴市浙东唐诗之路文化资源保护和利用条例",
+          "clause": "第十条",
+          "text": "第十条市、县（市、区）文化旅游主管部门应当会同有关部门编制本行政区域内浙东唐诗之路文化资源保护利用规划，经同级自然资源和规划主管部门审查，报本级人民政府批准。县（市、区）浙东唐诗之路文化资源保护利用规划应当报市文化旅游主管部门备案。\n\n浙东唐诗之路文化资源保护利用规划应当明确保护和利用的目标、内容、措施和要求，划定物质文化资源保护范围。\n\n浙东唐诗之路文化资源保护利用规划经批准公布后，应当严格执行，不得擅自修改；确需修改的，应当按照原审批程序报批。"
+        },
+        {
+          "source": "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf",
+          "title": "陵水黎族自治县非物质文化遗产保护条例",
+          "clause": "第八条",
+          "text": "第八条自治县人民政府文化主管部门应当会同有关部门编制非物质文化遗产保护规划 ，报自治县人民政府批准后组织实施 。"
+        }
+      ],
+      "expected_aspects": [
+        "绍兴文化资源保护利用要求",
+        "陵水文化主管部门会同编制规划",
+        "报自治县人民政府批准后实施",
+        "保护对象差异"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M029",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "culture_resource_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：比较绍兴浙东唐诗之路文化资源保护与陵水非物质文化遗产保护中，政府或主管部门在保护规划方面的职责。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "绍兴市浙东唐诗之路文化资源保护和利用条例_2023-04-24_2023-05-01.pdf",
+        "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应说明绍兴条例第十条中关于浙东唐诗之路文化资源保护和利用相关规划、保护名录或保护措施的要求；陵水条例要求自治县人民政府文化主管部门会同有关部门编制非物质文化遗产保护规划，报自治县人民政府批准后组织实施。答案应体现一个面向区域文化资源保护利用，一个面向非遗保护规划。",
+      "expected_evidence": [
+        {
+          "source": "绍兴市浙东唐诗之路文化资源保护和利用条例_2023-04-24_2023-05-01.pdf",
+          "title": "绍兴市浙东唐诗之路文化资源保护和利用条例",
+          "clause": "第十条",
+          "text": "第十条市、县（市、区）文化旅游主管部门应当会同有关部门编制本行政区域内浙东唐诗之路文化资源保护利用规划，经同级自然资源和规划主管部门审查，报本级人民政府批准。县（市、区）浙东唐诗之路文化资源保护利用规划应当报市文化旅游主管部门备案。\n\n浙东唐诗之路文化资源保护利用规划应当明确保护和利用的目标、内容、措施和要求，划定物质文化资源保护范围。\n\n浙东唐诗之路文化资源保护利用规划经批准公布后，应当严格执行，不得擅自修改；确需修改的，应当按照原审批程序报批。"
+        },
+        {
+          "source": "陵水黎族自治县非物质文化遗产保护条例_2015-04-10_.pdf",
+          "title": "陵水黎族自治县非物质文化遗产保护条例",
+          "clause": "第八条",
+          "text": "第八条自治县人民政府文化主管部门应当会同有关部门编制非物质文化遗产保护规划 ，报自治县人民政府批准后组织实施 。"
+        }
+      ],
+      "expected_aspects": [
+        "绍兴文化资源保护利用要求",
+        "陵水文化主管部门会同编制规划",
+        "报自治县人民政府批准后实施",
+        "保护对象差异"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M030",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "fund_or_fee_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：比较聊城养犬管理服务费和长春使用林地相关费用：分别由谁收取或缴纳，费用用途或条件是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "聊城犬只信息登记、签注应向公安机关交纳养犬管理服务费，收费按有关规定报省有关部门批准后执行，并规定盲人饲养导盲犬、肢体重残人饲养扶助犬免交，凭绝育证明免交。长春经批准使用林地的单位和个人必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费，四项费用由县级以上林业行政主管部门收取，并对森林植被恢复费上缴比例及费用用途作出规定。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二十条",
+          "text": "第二十条犬只信息登记、签注应当向公安机关交纳养犬管理服务费，养犬管理服务费的收取按照有关规定报省有关部门批准后执行。\n\n养犬管理服务费的收取和使用情况应当定期向社会公布。\n\n盲人饲养导盲犬、肢体重度残疾人饲养扶助犬，免交养犬管理服务费。\n\n养犬人凭犬只绝育证明，免交养犬管理服务费。"
+        },
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十九条",
+          "text": "第二十九条经批准使用林地的单位和个人，必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费。\n\n前款规定的四项费用，由县级以上林业行政主管部门收取，其中县级林业行政主管部门收取的森林植被恢复费，上缴市林业行政主管部门40%。\n\n林木补偿费、林地补偿费的补偿标准，按照吉林省有关规定执行。森林植被恢复费除了采伐迹地、火烧迹地外，按照被使用林地整地、造林、培育（包括森林防火、病虫鼠害防治、林地垦复、林木抚育等）全过程的重置价格缴纳。安置补助费根据使用林地范围内需要安置的人员数、对每个需要安置人口按照当地中等耕地单位面积平均年产值的2倍以上4倍以下补偿。\n\n林地补偿费、林木补偿费和安置补助费，除被使用林地上属于个人的附着物和青苗、林木的补偿费付给个人外，统由原林地、林木所有权或者使用权单位用于造林，发展林业生产和安置补助，不得挪作他用；森林植被恢复费用于森林植被的恢复和管护。"
+        }
+      ],
+      "expected_aspects": [
+        "聊城养犬服务费缴纳",
+        "聊城免交情形",
+        "长春林地四项费用",
+        "长春收取主体",
+        "费用用途或上缴规则"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M031",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "fund_or_fee_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：比较聊城养犬管理服务费和长春使用林地相关费用：分别由谁收取或缴纳，费用用途或条件是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "聊城犬只信息登记、签注应向公安机关交纳养犬管理服务费，收费按有关规定报省有关部门批准后执行，并规定盲人饲养导盲犬、肢体重残人饲养扶助犬免交，凭绝育证明免交。长春经批准使用林地的单位和个人必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费，四项费用由县级以上林业行政主管部门收取，并对森林植被恢复费上缴比例及费用用途作出规定。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二十条",
+          "text": "第二十条犬只信息登记、签注应当向公安机关交纳养犬管理服务费，养犬管理服务费的收取按照有关规定报省有关部门批准后执行。\n\n养犬管理服务费的收取和使用情况应当定期向社会公布。\n\n盲人饲养导盲犬、肢体重度残疾人饲养扶助犬，免交养犬管理服务费。\n\n养犬人凭犬只绝育证明，免交养犬管理服务费。"
+        },
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十九条",
+          "text": "第二十九条经批准使用林地的单位和个人，必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费。\n\n前款规定的四项费用，由县级以上林业行政主管部门收取，其中县级林业行政主管部门收取的森林植被恢复费，上缴市林业行政主管部门40%。\n\n林木补偿费、林地补偿费的补偿标准，按照吉林省有关规定执行。森林植被恢复费除了采伐迹地、火烧迹地外，按照被使用林地整地、造林、培育（包括森林防火、病虫鼠害防治、林地垦复、林木抚育等）全过程的重置价格缴纳。安置补助费根据使用林地范围内需要安置的人员数、对每个需要安置人口按照当地中等耕地单位面积平均年产值的2倍以上4倍以下补偿。\n\n林地补偿费、林木补偿费和安置补助费，除被使用林地上属于个人的附着物和青苗、林木的补偿费付给个人外，统由原林地、林木所有权或者使用权单位用于造林，发展林业生产和安置补助，不得挪作他用；森林植被恢复费用于森林植被的恢复和管护。"
+        }
+      ],
+      "expected_aspects": [
+        "聊城养犬服务费缴纳",
+        "聊城免交情形",
+        "长春林地四项费用",
+        "长春收取主体",
+        "费用用途或上缴规则"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M032",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "duplicate_source_compare_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：同名的《深圳市建筑市场严重违法行为特别处理规定》docx 和 pdf 两个文件中，第五条关于事故隐患整改不合格的处理是否一致？请分别引用两个文件。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应同时引用docx和pdf两个来源，并核对第五条核心内容：工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经责令限期整改后逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣资质证书，直至整改合格。若抽取文本有表格噪声，应说明以可识别条款内容为准。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        },
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        }
+      ],
+      "expected_aspects": [
+        "docx来源",
+        "pdf来源",
+        "第五条核心处理一致性",
+        "不得只引用其中一个同名文件"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M033",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "duplicate_source_compare_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：同名的《深圳市建筑市场严重违法行为特别处理规定》docx 和 pdf 两个文件中，第五条关于事故隐患整改不合格的处理是否一致？请分别引用两个文件。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应同时引用docx和pdf两个来源，并核对第五条核心内容：工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经责令限期整改后逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣资质证书，直至整改合格。若抽取文本有表格噪声，应说明以可识别条款内容为准。",
+      "expected_evidence": [
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        },
+        {
+          "source": "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf",
+          "title": "深圳市建筑市场严重违法行为特别处理规定",
+          "clause": "第五条",
+          "text": "第五条工程勘察、设计、施工、监理、检测单位违反安全生产、工程质量管理规定，存在事故隐患，经建设行政主管部门责令限期整改，逾期拒不整改或者整改不合格的，由市建设行政主管部门暂扣其资质证书，直至整改合格。"
+        }
+      ],
+      "expected_aspects": [
+        "docx来源",
+        "pdf来源",
+        "第五条核心处理一致性",
+        "不得只引用其中一个同名文件"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M034",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "cross_source_role_comparison_rewrite_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：分别列出林芝出租房安全管理条例和聊城市养犬管理条例中公安机关的职责，并说明两者职责重点有什么不同，引用不得交叉。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "林芝条例中公安机关负责出租房治安的统一监督管理；聊城条例中公安机关是养犬管理主管部门，负责犬只信息登记、签注、养犬信息系统、犬只收容救助场所管理，以及查处禁养限养、扰民、虐待遗弃、恐吓伤人等违法行为并组织捕捉流浪犬等。答案应体现两者一个偏出租房治安监督，一个偏犬只登记和养犬执法综合管理。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关是养犬管理的主管部门，负责犬只信息登记、签注，建立养犬信息管理系统，管理犬只收容救助场所，监督管理犬只展览、表演等大型活动，查处违反犬只禁养、限养、圈养拴养规定和犬只干扰他人正常生活、虐待或者遗弃犬只、放任犬只恐吓他人、驱使犬只伤害他人等违法行为，组织捕捉流浪犬、捕杀狂犬和正在伤人的犬只。\n\n农业农村部门负责组织实施并监督管理犬只免疫、发放狂犬病免疫证、植入电子芯片，监督管理兽用狂犬病疫苗，监测犬类狂犬病疫情、犬只检疫，查处无狂犬病免疫证养犬等。\n\n城市管理部门负责监督城市公园、广场、绿地等公共场所犬只禁入标识的设置，查处养犬影响市容和环境卫生，占用住宅小区公用区域养犬，违法在住宅小区或者占用公共场所从事犬只经营活动，违反携犬出户、犬只运送规定等行为。\n\n市场主体登记部门负责犬只经营、诊疗机构的登记注册。\n\n市场监督管理部门负责犬只交易活动的监督管理。\n\n卫生健康部门负责人用狂犬病疫苗的供应、接种和病人的诊治，人患狂犬病疫情的监测和防治，狂犬病预防的健康教育等工作。\n\n住房城乡建设部门负责监督指导物业服务企业参与养犬管理工作。\n\n财政部门负责养犬管理工作的经费保障。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝公安职责",
+        "聊城公安主管部门定位",
+        "聊城登记签注和系统职责",
+        "聊城违法行为查处职责",
+        "差异归纳"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M035",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "cross_source_role_comparison_rewrite_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：分别列出林芝出租房安全管理条例和聊城市养犬管理条例中公安机关的职责，并说明两者职责重点有什么不同，引用不得交叉。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "林芝条例中公安机关负责出租房治安的统一监督管理；聊城条例中公安机关是养犬管理主管部门，负责犬只信息登记、签注、养犬信息系统、犬只收容救助场所管理，以及查处禁养限养、扰民、虐待遗弃、恐吓伤人等违法行为并组织捕捉流浪犬等。答案应体现两者一个偏出租房治安监督，一个偏犬只登记和养犬执法综合管理。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关负责出租房治安的统一监督管理。\n\n消防救援机构负责出租房消防安全综合监督管理工作。\n\n住房城乡建设部门负责房屋租赁的监督管理，按照规定做好房屋租赁登记备案等工作。\n\n应急管理、市场监督管理、民政、自然资源、城市管理、农业农村、机关事务管理、财政、金融监管、电力管理、燃气管理等部门和单位，按照各自职责做好出租房安全监督管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第五条",
+          "text": "第五条公安机关是养犬管理的主管部门，负责犬只信息登记、签注，建立养犬信息管理系统，管理犬只收容救助场所，监督管理犬只展览、表演等大型活动，查处违反犬只禁养、限养、圈养拴养规定和犬只干扰他人正常生活、虐待或者遗弃犬只、放任犬只恐吓他人、驱使犬只伤害他人等违法行为，组织捕捉流浪犬、捕杀狂犬和正在伤人的犬只。\n\n农业农村部门负责组织实施并监督管理犬只免疫、发放狂犬病免疫证、植入电子芯片，监督管理兽用狂犬病疫苗，监测犬类狂犬病疫情、犬只检疫，查处无狂犬病免疫证养犬等。\n\n城市管理部门负责监督城市公园、广场、绿地等公共场所犬只禁入标识的设置，查处养犬影响市容和环境卫生，占用住宅小区公用区域养犬，违法在住宅小区或者占用公共场所从事犬只经营活动，违反携犬出户、犬只运送规定等行为。\n\n市场主体登记部门负责犬只经营、诊疗机构的登记注册。\n\n市场监督管理部门负责犬只交易活动的监督管理。\n\n卫生健康部门负责人用狂犬病疫苗的供应、接种和病人的诊治，人患狂犬病疫情的监测和防治，狂犬病预防的健康教育等工作。\n\n住房城乡建设部门负责监督指导物业服务企业参与养犬管理工作。\n\n财政部门负责养犬管理工作的经费保障。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝公安职责",
+        "聊城公安主管部门定位",
+        "聊城登记签注和系统职责",
+        "聊城违法行为查处职责",
+        "差异归纳"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M036",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "three_source_grassroots_duties_rewrite_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：林芝出租房、聊城养犬、绍兴物业三个法规里，基层组织或社区主体分别承担哪些协助、监督或纠纷处理职责？请按文件分组回答。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应指出：林芝乡镇人民政府、街道办事处按属地管理做好出租房安全管理；聊城社区、居（村）民委员会、业主委员会协助宣传教育，可制定养犬公约、划定遛犬区域和时间并监督执行；绍兴居（村）民委员会指导监督业主大会和业主委员会，协助街道办事处、乡镇人民政府做好物业管理，引导业主参与，调解纠纷，协调物业管理与社区建设。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第六条",
+          "text": "第六条乡镇人民政府、街道办事处应当按照属地管理原则做好出租房安全管理工作。\n\n村（居）民委员会按照网格化服务管理要求，协助乡镇、街道和有关部门做好出租房安全管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第六条",
+          "text": "第六条社区、居（村）民委员会、业主委员会应当协助相关管理部门开展依法、文明养犬的宣传教育，可以就本区域内有关养犬事项制定公约，划定允许遛犬的区域和时间，设立标识并监督执行，引导、督促养犬人依法养犬、文明养犬。\n\n物业服务企业应当对服务区域内违法养犬行为予以制止，并向有关行政管理部门报告。\n\n鼓励养犬协会、动物保护组织等社会组织依法参与养犬管理活动，协助有关部门做好养犬管理工作。\n\n新闻、出版、广播、电视、报刊、网络等媒体应当加强对文明养犬知识的免费公益宣传，引导养犬人依法、文明养犬。"
+        },
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第六条",
+          "text": "第六条居（村）民委员会应当指导、监督业主大会和业主委员会依法履行职责，协助有关行政主管部门和街道办事处、\n\n乡镇人民政府做好物业管理工作，引导业主参与支持物业管理，\n\n调解物业管理纠纷，协调推进物业管理与社区建设。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝属地管理",
+        "聊城社区和业委会养犬协助",
+        "绍兴居村委物业协助",
+        "基层治理差异"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M037",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "three_source_grassroots_duties_rewrite_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：林芝出租房、聊城养犬、绍兴物业三个法规里，基层组织或社区主体分别承担哪些协助、监督或纠纷处理职责？请按文件分组回答。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "应指出：林芝乡镇人民政府、街道办事处按属地管理做好出租房安全管理；聊城社区、居（村）民委员会、业主委员会协助宣传教育，可制定养犬公约、划定遛犬区域和时间并监督执行；绍兴居（村）民委员会指导监督业主大会和业主委员会，协助街道办事处、乡镇人民政府做好物业管理，引导业主参与，调解纠纷，协调物业管理与社区建设。",
+      "expected_evidence": [
+        {
+          "source": "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx",
+          "title": "林芝市出租房安全管理条例",
+          "clause": "第六条",
+          "text": "第六条乡镇人民政府、街道办事处应当按照属地管理原则做好出租房安全管理工作。\n\n村（居）民委员会按照网格化服务管理要求，协助乡镇、街道和有关部门做好出租房安全管理工作。"
+        },
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第六条",
+          "text": "第六条社区、居（村）民委员会、业主委员会应当协助相关管理部门开展依法、文明养犬的宣传教育，可以就本区域内有关养犬事项制定公约，划定允许遛犬的区域和时间，设立标识并监督执行，引导、督促养犬人依法养犬、文明养犬。\n\n物业服务企业应当对服务区域内违法养犬行为予以制止，并向有关行政管理部门报告。\n\n鼓励养犬协会、动物保护组织等社会组织依法参与养犬管理活动，协助有关部门做好养犬管理工作。\n\n新闻、出版、广播、电视、报刊、网络等媒体应当加强对文明养犬知识的免费公益宣传，引导养犬人依法、文明养犬。"
+        },
+        {
+          "source": "绍兴市物业管理条例_2023-06-02_2023-06-02.pdf",
+          "title": "绍兴市物业管理条例",
+          "clause": "第六条",
+          "text": "第六条居（村）民委员会应当指导、监督业主大会和业主委员会依法履行职责，协助有关行政主管部门和街道办事处、\n\n乡镇人民政府做好物业管理工作，引导业主参与支持物业管理，\n\n调解物业管理纠纷，协调推进物业管理与社区建设。"
+        }
+      ],
+      "expected_aspects": [
+        "林芝属地管理",
+        "聊城社区和业委会养犬协助",
+        "绍兴居村委物业协助",
+        "基层治理差异"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 4
+    },
+    {
+      "id": "DL-M038",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "fee_comparison_rewrite_grouped_sources_rewrite",
+      "query": "请按来源文件分组作答并比较差异：对比《聊城市养犬管理条例》的养犬管理服务费与《长春市森林资源管理条例》的使用林地费用：缴纳主体、收取主体、费用用途或减免条件分别是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "聊城犬只信息登记、签注应向公安机关交纳养犬管理服务费，收费按有关规定报省有关部门批准后执行，并规定盲人饲养导盲犬、肢体重残人饲养扶助犬免交，凭绝育证明免交。长春经批准使用林地的单位和个人必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费，四项费用由县级以上林业行政主管部门收取，并对森林植被恢复费上缴比例及费用用途作出规定。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二十条",
+          "text": "第二十条犬只信息登记、签注应当向公安机关交纳养犬管理服务费，养犬管理服务费的收取按照有关规定报省有关部门批准后执行。\n\n养犬管理服务费的收取和使用情况应当定期向社会公布。\n\n盲人饲养导盲犬、肢体重度残疾人饲养扶助犬，免交养犬管理服务费。\n\n养犬人凭犬只绝育证明，免交养犬管理服务费。"
+        },
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十九条",
+          "text": "第二十九条经批准使用林地的单位和个人，必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费。\n\n前款规定的四项费用，由县级以上林业行政主管部门收取，其中县级林业行政主管部门收取的森林植被恢复费，上缴市林业行政主管部门40%。\n\n林木补偿费、林地补偿费的补偿标准，按照吉林省有关规定执行。森林植被恢复费除了采伐迹地、火烧迹地外，按照被使用林地整地、造林、培育（包括森林防火、病虫鼠害防治、林地垦复、林木抚育等）全过程的重置价格缴纳。安置补助费根据使用林地范围内需要安置的人员数、对每个需要安置人口按照当地中等耕地单位面积平均年产值的2倍以上4倍以下补偿。\n\n林地补偿费、林木补偿费和安置补助费，除被使用林地上属于个人的附着物和青苗、林木的补偿费付给个人外，统由原林地、林木所有权或者使用权单位用于造林，发展林业生产和安置补助，不得挪作他用；森林植被恢复费用于森林植被的恢复和管护。"
+        }
+      ],
+      "expected_aspects": [
+        "聊城养犬服务费缴纳",
+        "聊城免交情形",
+        "长春林地四项费用",
+        "长春收取主体",
+        "费用用途或上缴规则"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M039",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "fee_comparison_rewrite_no_cross_citation_rewrite",
+      "query": "请分别引用每个目标文件，避免把不同文件条款混在一起：对比《聊城市养犬管理条例》的养犬管理服务费与《长春市森林资源管理条例》的使用林地费用：缴纳主体、收取主体、费用用途或减免条件分别是什么？",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "聊城犬只信息登记、签注应向公安机关交纳养犬管理服务费，收费按有关规定报省有关部门批准后执行，并规定盲人饲养导盲犬、肢体重残人饲养扶助犬免交，凭绝育证明免交。长春经批准使用林地的单位和个人必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费，四项费用由县级以上林业行政主管部门收取，并对森林植被恢复费上缴比例及费用用途作出规定。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二十条",
+          "text": "第二十条犬只信息登记、签注应当向公安机关交纳养犬管理服务费，养犬管理服务费的收取按照有关规定报省有关部门批准后执行。\n\n养犬管理服务费的收取和使用情况应当定期向社会公布。\n\n盲人饲养导盲犬、肢体重度残疾人饲养扶助犬，免交养犬管理服务费。\n\n养犬人凭犬只绝育证明，免交养犬管理服务费。"
+        },
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十九条",
+          "text": "第二十九条经批准使用林地的单位和个人，必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费。\n\n前款规定的四项费用，由县级以上林业行政主管部门收取，其中县级林业行政主管部门收取的森林植被恢复费，上缴市林业行政主管部门40%。\n\n林木补偿费、林地补偿费的补偿标准，按照吉林省有关规定执行。森林植被恢复费除了采伐迹地、火烧迹地外，按照被使用林地整地、造林、培育（包括森林防火、病虫鼠害防治、林地垦复、林木抚育等）全过程的重置价格缴纳。安置补助费根据使用林地范围内需要安置的人员数、对每个需要安置人口按照当地中等耕地单位面积平均年产值的2倍以上4倍以下补偿。\n\n林地补偿费、林木补偿费和安置补助费，除被使用林地上属于个人的附着物和青苗、林木的补偿费付给个人外，统由原林地、林木所有权或者使用权单位用于造林，发展林业生产和安置补助，不得挪作他用；森林植被恢复费用于森林植被的恢复和管护。"
+        }
+      ],
+      "expected_aspects": [
+        "聊城养犬服务费缴纳",
+        "聊城免交情形",
+        "长春林地四项费用",
+        "长春收取主体",
+        "费用用途或上缴规则"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-M040",
+      "category": "multi_document_synthesis",
+      "difficulty_category": "多文档综合类",
+      "difficulty_level": "hard",
+      "subtype": "fee_comparison_rewrite_matrix_rewrite",
+      "query": "请按缴纳主体、收取主体、费用用途、减免条件四个维度，对比聊城养犬管理服务费和长春使用林地费用。",
+      "expected_behavior": "answer_with_citations",
+      "expected_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx"
+      ],
+      "expected_source_policy": "multi_source_required",
+      "expected_answer": "聊城犬只信息登记、签注应向公安机关交纳养犬管理服务费，收费按有关规定报省有关部门批准后执行，并规定盲人饲养导盲犬、肢体重残人饲养扶助犬免交，凭绝育证明免交。长春经批准使用林地的单位和个人必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费，四项费用由县级以上林业行政主管部门收取，并对森林植被恢复费上缴比例及费用用途作出规定。",
+      "expected_evidence": [
+        {
+          "source": "聊城市养犬管理条例_2020-06-15_2020-09-01.docx",
+          "title": "聊城市养犬管理条例",
+          "clause": "第二十条",
+          "text": "第二十条犬只信息登记、签注应当向公安机关交纳养犬管理服务费，养犬管理服务费的收取按照有关规定报省有关部门批准后执行。\n\n养犬管理服务费的收取和使用情况应当定期向社会公布。\n\n盲人饲养导盲犬、肢体重度残疾人饲养扶助犬，免交养犬管理服务费。\n\n养犬人凭犬只绝育证明，免交养犬管理服务费。"
+        },
+        {
+          "source": "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+          "title": "长春市森林资源管理条例",
+          "clause": "第二十九条",
+          "text": "第二十九条经批准使用林地的单位和个人，必须支付林地补偿费、林木补偿费、森林植被恢复费和安置补助费。\n\n前款规定的四项费用，由县级以上林业行政主管部门收取，其中县级林业行政主管部门收取的森林植被恢复费，上缴市林业行政主管部门40%。\n\n林木补偿费、林地补偿费的补偿标准，按照吉林省有关规定执行。森林植被恢复费除了采伐迹地、火烧迹地外，按照被使用林地整地、造林、培育（包括森林防火、病虫鼠害防治、林地垦复、林木抚育等）全过程的重置价格缴纳。安置补助费根据使用林地范围内需要安置的人员数、对每个需要安置人口按照当地中等耕地单位面积平均年产值的2倍以上4倍以下补偿。\n\n林地补偿费、林木补偿费和安置补助费，除被使用林地上属于个人的附着物和青苗、林木的补偿费付给个人外，统由原林地、林木所有权或者使用权单位用于造林，发展林业生产和安置补助，不得挪作他用；森林植被恢复费用于森林植被的恢复和管护。"
+        }
+      ],
+      "expected_aspects": [
+        "聊城养犬服务费缴纳",
+        "聊城免交情形",
+        "长春林地四项费用",
+        "长春收取主体",
+        "费用用途或上缴规则"
+      ],
+      "must_not_use_sources": [],
+      "metric_focus": [
+        "source_lock_accuracy",
+        "section_recall",
+        "citation_support_rate",
+        "answer_scope_accuracy",
+        "aspect_coverage"
+      ],
+      "minimum_required_aspect_count": 5
+    },
+    {
+      "id": "DL-N013",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "nonexistent_region_title_guardrail_rewrite",
+      "query": "请处理这个检索请求，找不到精确来源时必须拒绝替代作答：请回答《不存在的城市出租房安全管理条例》适用于哪些活动？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的出租房安全管理条例当作答案来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别文档缺失",
+        "返回未找到",
+        "不引用相似来源"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N014",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "near_title_not_found_guardrail_rewrite",
+      "query": "请处理这个检索请求，找不到精确来源时必须拒绝替代作答：《长春市森林防火管理条例》关于森林防火期如何规定？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的森林资源管理条例当作答案来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别文档缺失",
+        "拒绝近似标题替代",
+        "不引用森林资源管理条例"
+      ],
+      "must_not_use_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+        "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N015",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "ambiguous_article_without_source_guardrail_rewrite",
+      "query": "用户没有给出足够明确的文档来源，判断是否需要澄清：第五条规定了什么？",
+      "expected_behavior": "ask_clarification",
+      "expected_sources": [],
+      "expected_source_policy": "source_ambiguous",
+      "expected_answer": "应要求用户补充具体法规或文件名称，因为仅凭条号无法确定唯一来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别缺少具体文档",
+        "要求补充法规名称",
+        "不进入全库混合检索"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_clarification",
+        "document_ambiguous",
+        "compare_clarification",
+        "ambiguous"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N016",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "ambiguous_short_alias_guardrail_rewrite",
+      "query": "用户没有给出足够明确的文档来源，判断是否需要澄清：深圳建筑相关条例第五条是什么？",
+      "expected_behavior": "ask_clarification",
+      "expected_sources": [],
+      "expected_source_policy": "source_ambiguous",
+      "expected_answer": "应要求用户明确具体法规文件，因为深圳建筑相关文件存在多份，不能任选其中一份作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别深圳建筑相关文件多义",
+        "要求补充具体法规名称",
+        "不任选单一来源回答"
+      ],
+      "must_not_use_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf",
+        "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_clarification",
+        "document_ambiguous",
+        "compare_clarification",
+        "ambiguous"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N017",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "out_of_scope_law_guardrail_rewrite",
+      "query": "不要引用无关法规，先判断证据是否足以回答：依据《林芝市出租房安全管理条例》，公司裁员补偿应如何计算？",
+      "expected_behavior": "evidence_insufficient",
+      "expected_sources": [],
+      "expected_source_policy": "evidence_insufficient",
+      "expected_answer": "应说明该问题超出出租房安全管理法规的调整范围，当前证据不足以回答劳动补偿问题。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "问题超出法规调整范围",
+        "不能引用出租房条例回答劳动问题",
+        "说明证据不足"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "refusal",
+        "evidence_insufficient",
+        "blocked",
+        "out_of_scope"
+      ],
+      "allow_knowledge_base_debunk": true,
+      "expected_no_retrieval": false
+    },
+    {
+      "id": "DL-N018",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "missing_duplicate_format_guardrail_rewrite",
+      "query": "请处理这个检索请求，找不到精确来源时必须拒绝替代作答：请查询《深圳市建筑市场严重违法行为特别处理规定》xlsx 版本第五条内容",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确指定的 xlsx 版本不存在，不应自动回退到同名 docx 或 pdf 文件作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "指定的 xlsx 文件不存在",
+        "不能回退 docx/pdf 版本",
+        "返回文档未找到或澄清"
+      ],
+      "must_not_use_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found",
+        "document_clarification"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N019",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "nonexistent_region_title_guardrail_rewrite",
+      "query": "请处理这个检索请求，找不到精确来源时必须拒绝替代作答：请回答《不存在的城市养犬管理条例》关于犬只登记有哪些要求？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定城市的养犬管理条例，不应把聊城市养犬管理条例作为替代来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别地域前缀不存在",
+        "返回文档未找到",
+        "不引用聊城市养犬管理条例"
+      ],
+      "must_not_use_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N020",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "business_term_collision_guardrail_rewrite",
+      "query": "请处理这个检索请求，找不到精确来源时必须拒绝替代作答：《长春市森林防火条例》第十五条是什么？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定的森林防火条例，不能把森林资源管理条例作为近似来源回答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别森林防火与森林资源不是同一文件",
+        "返回文档未找到",
+        "不引用长春市森林资源管理条例"
+      ],
+      "must_not_use_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+        "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N021",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "bare_article_without_source_guardrail_rewrite",
+      "query": "用户没有给出足够明确的文档来源，判断是否需要澄清：第二十条规定了什么？",
+      "expected_behavior": "ask_clarification",
+      "expected_sources": [],
+      "expected_source_policy": "source_ambiguous",
+      "expected_answer": "应要求用户补充具体法规或文件名称，因为仅凭第二十条无法确定唯一来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别缺少具体文档",
+        "要求补充法规名称",
+        "不进入全库混合检索"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_clarification",
+        "document_ambiguous",
+        "compare_clarification",
+        "ambiguous"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N022",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "missing_duplicate_format_guardrail_rewrite",
+      "query": "请处理这个检索请求，找不到精确来源时必须拒绝替代作答：请查询《聊城市养犬管理条例》xlsx 版本第二十条内容",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确指定的 xlsx 版本不存在，不应自动回退到同名 docx 文件作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "指定的 xlsx 文件不存在",
+        "不能回退 docx 版本",
+        "返回文档未找到或澄清"
+      ],
+      "must_not_use_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found",
+        "document_clarification"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N023",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "out_of_scope_law_guardrail_rewrite",
+      "query": "不要引用无关法规，先判断证据是否足以回答：依据《聊城市养犬管理条例》，员工离职经济补偿怎么计算？",
+      "expected_behavior": "evidence_insufficient",
+      "expected_sources": [],
+      "expected_source_policy": "evidence_insufficient",
+      "expected_answer": "应说明该问题超出养犬管理法规的调整范围，当前证据不足以回答劳动经济补偿问题。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "问题超出法规调整范围",
+        "不能引用养犬条例回答劳动问题",
+        "说明证据不足"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [
+        "聊城市养犬管理条例_2020-06-15_2020-09-01.docx"
+      ],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "refusal",
+        "evidence_insufficient",
+        "blocked",
+        "out_of_scope"
+      ],
+      "allow_knowledge_base_debunk": true,
+      "expected_no_retrieval": false
+    },
+    {
+      "id": "DL-N024",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "missing_specific_version_year_guardrail_rewrite",
+      "query": "请处理这个检索请求，找不到精确来源时必须拒绝替代作答：请查询《长春市森林资源管理条例》2019 年版本第十五条内容",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确未找到指定的 2019 年版本，不能回退到 2024 或 2004 年版本作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "指定年份版本不存在",
+        "不能回退其他年份版本",
+        "返回文档未找到或澄清"
+      ],
+      "must_not_use_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+        "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found",
+        "document_clarification"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N025",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "nonexistent_region_title_strict_validation_rewrite",
+      "query": "请严格按文件名、地域、格式或版本匹配，不能用相似文件替代：请回答《不存在的城市出租房安全管理条例》适用于哪些活动？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的出租房安全管理条例当作答案来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别文档缺失",
+        "返回未找到",
+        "不引用相似来源"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N026",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "near_title_not_found_strict_validation_rewrite",
+      "query": "请严格按文件名、地域、格式或版本匹配，不能用相似文件替代：《长春市森林防火管理条例》关于森林防火期如何规定？",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确找不到指定文档或法规，不应把近似标题的森林资源管理条例当作答案来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别文档缺失",
+        "拒绝近似标题替代",
+        "不引用森林资源管理条例"
+      ],
+      "must_not_use_sources": [
+        "长春市森林资源管理条例_2024-04-02_2024-04-02.docx",
+        "长春市森林资源管理条例_2004-08-19_2004-08-19.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N027",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "ambiguous_article_without_source_strict_validation_rewrite",
+      "query": "严格禁止用全库检索猜测来源，只判断是否应当澄清：第五条规定了什么？",
+      "expected_behavior": "ask_clarification",
+      "expected_sources": [],
+      "expected_source_policy": "source_ambiguous",
+      "expected_answer": "应要求用户补充具体法规或文件名称，因为仅凭条号无法确定唯一来源。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别缺少具体文档",
+        "要求补充法规名称",
+        "不进入全库混合检索"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_clarification",
+        "document_ambiguous",
+        "compare_clarification",
+        "ambiguous"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N028",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "ambiguous_short_alias_strict_validation_rewrite",
+      "query": "严格禁止用全库检索猜测来源，只判断是否应当澄清：深圳建筑相关条例第五条是什么？",
+      "expected_behavior": "ask_clarification",
+      "expected_sources": [],
+      "expected_source_policy": "source_ambiguous",
+      "expected_answer": "应要求用户明确具体法规文件，因为深圳建筑相关文件存在多份，不能任选其中一份作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "识别深圳建筑相关文件多义",
+        "要求补充具体法规名称",
+        "不任选单一来源回答"
+      ],
+      "must_not_use_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf",
+        "深圳市建设工程质量管理条例_2004-07-29_2004-07-29.pdf",
+        "深圳市建筑废弃物减排与利用条例_2009-05-31_.docx"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_clarification",
+        "document_ambiguous",
+        "compare_clarification",
+        "ambiguous"
+      ],
+      "allow_knowledge_base_debunk": false,
+      "expected_no_retrieval": true
+    },
+    {
+      "id": "DL-N029",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "out_of_scope_law_strict_validation_rewrite",
+      "query": "严格拒绝越界法律推断，只依据目标法规判断是否证据不足：依据《林芝市出租房安全管理条例》，公司裁员补偿应如何计算？",
+      "expected_behavior": "evidence_insufficient",
+      "expected_sources": [],
+      "expected_source_policy": "evidence_insufficient",
+      "expected_answer": "应说明该问题超出出租房安全管理法规的调整范围，当前证据不足以回答劳动补偿问题。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "问题超出法规调整范围",
+        "不能引用出租房条例回答劳动问题",
+        "说明证据不足"
+      ],
+      "must_not_use_sources": [],
+      "allowed_retrieval_sources": [
+        "林芝市出租房安全管理条例_2024-12-06_2025-01-01.docx"
+      ],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "refusal",
+        "evidence_insufficient",
+        "blocked",
+        "out_of_scope"
+      ],
+      "allow_knowledge_base_debunk": true,
+      "expected_no_retrieval": false
+    },
+    {
+      "id": "DL-N030",
+      "category": "negative_control",
+      "difficulty_category": "负向控制类",
+      "difficulty_level": "negative",
+      "subtype": "missing_duplicate_format_strict_validation_rewrite",
+      "query": "请严格按文件名、地域、格式或版本匹配，不能用相似文件替代：请查询《深圳市建筑市场严重违法行为特别处理规定》xlsx 版本第五条内容",
+      "expected_behavior": "document_not_found",
+      "expected_sources": [],
+      "expected_source_policy": "not_found",
+      "expected_answer": "应明确指定的 xlsx 版本不存在，不应自动回退到同名 docx 或 pdf 文件作答。",
+      "expected_evidence": [],
+      "expected_aspects": [
+        "指定的 xlsx 文件不存在",
+        "不能回退 docx/pdf 版本",
+        "返回文档未找到或澄清"
+      ],
+      "must_not_use_sources": [
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.docx",
+        "深圳市建筑市场严重违法行为特别处理规定_2007-08-15_.pdf"
+      ],
+      "allowed_retrieval_sources": [],
+      "metric_focus": [
+        "negative_control_pass_rate",
+        "route_pass_rate",
+        "no_retrieval_pass_rate",
+        "no_wrong_source_pass_rate"
+      ],
+      "minimum_required_aspect_count": 2,
+      "negative_control": true,
+      "expected_signals": [
+        "document_not_found",
+        "not_found",
+        "document_clarification"
+      ],
+      "allow_knowledge_base_debunk": false,
       "expected_no_retrieval": true
     }
   ]

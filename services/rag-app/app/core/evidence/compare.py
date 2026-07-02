@@ -13,6 +13,15 @@ from app.core.evidence.hits import (
     is_substantive_short_legal_evidence,
 )
 
+DOC_NAMESPACE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def _doc_namespace(group_no: int) -> str:
+    index = max(1, int(group_no)) - 1
+    if index < len(DOC_NAMESPACE_ALPHABET):
+        return DOC_NAMESPACE_ALPHABET[index]
+    return f"D{group_no}"
+
 
 def compare_answer_snippet(runtime: Any, doc: Any, limit: int = 120) -> str:
     snippet = re.sub(r"\s+", " ", _evidence_context(runtime).hit_display_text(doc) or "").strip()
@@ -61,7 +70,7 @@ def format_compare_evidence(
         for item in (compare_source_statuses or [])
         if adapter.normalize_filename_for_match((item or {}).get("source") or "")
     }
-    header = f"对比证据焦点：{focus_text}"
+    header = f"对比证据焦点：{focus_text}\n引用规则：每部法规都有独立编号空间，回答时必须使用对应法规下的编号，例如 [A-1]、[B-1]；禁止用其他法规编号支撑本法规结论。"
     header_tokens = estimate_token_count(header, model_name) + 2
     if header_tokens <= max_tokens:
         lines.append(header)
@@ -69,36 +78,48 @@ def format_compare_evidence(
     flattened_docs = [doc for group in source_groups or [] for doc in (group.get("docs") or [])]
     best_score = adapter.hit_score(flattened_docs[0]) if flattened_docs else 0.0
     evidence_index = 1
-    for group in source_groups or []:
+    for group_no, group in enumerate(source_groups or [], start=1):
+        doc_namespace = _doc_namespace(group_no)
         source = adapter.normalize_filename_for_match((group or {}).get("source") or "")
         title = adapter.source_display_title(source) if source else "未知来源"
         evidence_query = adapter.normalize_query((group or {}).get("evidence_query") or query) or query
-        group_head = f"来源：{title} | 检索问题：{evidence_query}"
+        group_head = f"【《{title}》】\n文档命名空间：{doc_namespace} | 检索问题：{evidence_query} | 本法规证据编号只能使用 [{doc_namespace}-1]、[{doc_namespace}-2] ..."
         group_head_tokens = estimate_token_count(group_head, model_name) + 2
         if total_tokens + group_head_tokens <= max_tokens:
             lines.append(group_head)
             total_tokens += group_head_tokens
         first_ref_recorded = False
         group_blocks: List[str] = []
-        for doc in group.get("docs") or []:
+        for local_index, doc in enumerate(group.get("docs") or [], start=1):
             src = adapter.hit_entity_source(doc) or source or "unknown"
             content = (adapter.hit_display_text(doc) or "").strip()
             if not content:
                 evidence_index += 1
                 continue
+            metadata = adapter.hit_metadata(doc)
             section = adapter.doc_section_name(doc)
+            article_no = str(
+                metadata.get("article_no")
+                or metadata.get("article_id")
+                or metadata.get("clause_id")
+                or metadata.get("clause_label")
+                or ""
+            ).strip()
             chunk_range = adapter.hit_chunk_range(doc)
             relevance = evidence_relevance(adapter.hit_score(doc), score_mode, best_score)
             parts = [f"来源：{src}", f"标题：{title}", f"相关度：{relevance:.2f}"]
+            if article_no:
+                parts.append(f"条款：{article_no}")
             if section:
                 parts.append(f"章节：{section}")
             if chunk_range:
                 parts.append(f"chunk：{chunk_range}")
-            block = f"[{evidence_index}] " + " | ".join(parts) + "\n" + content
+            local_ref = f"{doc_namespace}-{local_index}"
+            block = f"[{local_ref}] " + " | ".join(parts) + "\n" + content
             block_tokens = estimate_token_count(block, model_name) + 2
             if total_tokens + block_tokens > max_tokens:
                 fitted = fit_evidence_block_to_budget(
-                    f"[{evidence_index}] " + " | ".join(parts),
+                    f"[{local_ref}] " + " | ".join(parts),
                     content,
                     max_tokens - total_tokens,
                     model_name,
@@ -111,10 +132,13 @@ def format_compare_evidence(
                             "source": source,
                             "title": title,
                             "section": section,
+                            "article_no": article_no,
                             "chunk_range": chunk_range,
                             "status": status_map.get(source, ""),
                             "snippet": compare_answer_snippet(runtime, doc),
                             "evidence_query": evidence_query,
+                            "doc_namespace": doc_namespace,
+                            "local_ref": local_ref,
                         })
                     lines.extend(group_blocks)
                 return "\n\n".join(lines), refs
@@ -125,8 +149,11 @@ def format_compare_evidence(
                     "source": source,
                     "title": title,
                     "section": section,
+                    "article_no": article_no,
                     "snippet": compare_answer_snippet(runtime, doc),
                     "evidence_query": evidence_query,
+                    "doc_namespace": doc_namespace,
+                    "local_ref": local_ref,
                 })
                 first_ref_recorded = True
             evidence_index += 1

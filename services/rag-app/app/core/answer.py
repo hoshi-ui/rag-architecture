@@ -433,6 +433,14 @@ def build_answer_prompt(
     aspect_plan: str,
     evidence_gate_warning: str = "",
 ) -> str:
+    namespaced_refs = bool(re.search(r"\[[A-Z]-\d+\]", evidence or ""))
+    citation_example = "[A-1] 或 [A-1][B-1]" if namespaced_refs else "[1] 或 [1][2]"
+    citation_format_rule = (
+        "只能使用 context 中出现的法规专属编号，例如 [A-1]、[B-1]；同一法规结论必须使用该法规自己的编号。若证据块提供标题和条款号，应写成《法规名称》第x条[A-1]。"
+        if namespaced_refs
+        else "只能使用干净的方括号数字。"
+    )
+    compare_ref_hint = "[A-1]/[B-1]" if namespaced_refs else "[n]"
     return (
         "请先仔细阅读以下参考材料：\n"
         "<context>\n"
@@ -449,14 +457,14 @@ def build_answer_prompt(
         f"证据门控提示：{evidence_gate_warning or '(无)'}\n\n"
         "【绝对纪律红线】（必须 100% 遵守，否则将被判定为严重错误）\n"
         "1. 零幻觉底线：只允许依据 <context> 中的内容作答。如果没有提供足够证据，必须明确回复“检索到的参考文档中未提供相关规定”，绝不允许动用你的内部知识编造！\n"
-        "2. 极简引用原则：每个事实结论后必须紧跟最小、最直接的正文编号引用（例如 [1] 或 [1][2]）。严禁列举不相关的相邻条款、程序条款或兜底条款！\n"
-        "3. 格式封杀：严禁输出“[证据 n]”、“证据 n”、“来源 n”、“[1-3]”、“[[1]]”等格式，只能使用干净的方括号数字。\n\n"
+        f"2. 极简引用原则：每个事实结论后必须紧跟最小、最直接的正文编号引用（例如 {citation_example}）。严禁列举不相关的相邻条款、程序条款或兜底条款！\n"
+        f"3. 格式封杀：严禁输出“[证据 n]”、“证据 n”、“来源 n”、“[1-3]”、“[[1]]”等格式，{citation_format_rule}\n\n"
         "【输出结构强制要求】\n"
         "如果当前【问题类型】为对比题（或涉及多部法规），你必须严格使用以下 Markdown 结构进行作答，不得遗漏任何一部目标法规：\n"
         "### 1. 《[第一部相关法规名称]》的规定\n"
-        "（依据上下文，结合具体的 [n] 引用进行总结。如未提及，直接回答“未提及”）\n"
+        f"（依据上下文，结合具体的 {compare_ref_hint} 引用进行总结。如未提及，直接回答“未提及”）\n"
         "### 2. 《[第二部相关法规名称]》的规定\n"
-        "（依据上下文，结合具体的 [n] 引用进行总结。如未提及，直接回答“未提及”）\n"
+        f"（依据上下文，结合具体的 {compare_ref_hint} 引用进行总结。如未提及，直接回答“未提及”）\n"
         "### 3. 综合对比分析\n"
         "（一句话精准总结差异或共同点）\n\n"
         "请开始你的严格作答："
@@ -465,9 +473,13 @@ def build_answer_prompt(
 
 def build_answer_verification_prompt(query: str, evidence: str, draft: str, aspect_plan: str) -> str:
     legal_rules = legal_clause_answer_rules(query, evidence)
+    if re.search(r"\[[A-Z]-\d+\]", evidence or ""):
+        citation_rule = "引用格式只能使用 context 中存在的法规专属编号，例如 [A-1]、[B-1]；禁止改写成扁平 [1]、[2]。"
+    else:
+        citation_rule = "引用格式只能是 [1]、[2]；禁止输出 [证据 n]。"
     return (
         "请核查并改写 draft，使所有事实结论都严格来自 context。"
-        "引用格式只能是 [1]、[2]；禁止输出 [证据 n]。"
+        f"{citation_rule}"
         "如果 context 不支持某结论，请删除或改为证据不足。\n"
         f"{legal_rules}"
         f"问题：{query}\n方面计划：\n{aspect_plan or '(无)'}\n"
@@ -746,7 +758,7 @@ def answer_claim_lines(answer: str) -> List[str]:
 
 
 def answer_uncited_claim_lines(answer: str) -> List[str]:
-    return [line for line in answer_claim_lines(answer) if not re.search(r"\[\d+\]", line)]
+    return [line for line in answer_claim_lines(answer) if not re.search(r"\[(?:\d+|[A-Z]-\d+)\]", line)]
 
 
 def answer_looks_truncated(answer: str) -> bool:
@@ -1009,17 +1021,8 @@ def rewrite_answer_citation_protocol(
 
 def ensure_answer_aspect_coverage(runtime: Any, answer: str, aspect_plan: str, docs: List[Any]) -> str:
     normalized = normalize_answer_citation_style(answer)
-    if not aspect_plan or not docs:
-        return normalized
-    existing = normalize_query_safe(_answer_context(runtime), normalized)
-    heading_style = detect_answer_aspect_heading_style(normalized)
-    additions: List[str] = []
-    for entry in parse_answer_aspect_plan(aspect_plan):
-        aspect = str(entry.get("aspect") or "")
-        if aspect and _answer_context(runtime).normalize_query(aspect) not in existing:
-            additions.extend(build_missing_aspect_group(runtime, entry, docs, heading_style))
-    if additions:
-        normalized = normalized.rstrip() + "\n\n" + "\n".join(additions)
+    # Legal answers must not be padded after generation. Missing coverage
+    # should remain visible as lower relevance instead of becoming hallucinated text.
     return normalize_answer_citation_style(normalized)
 
 
@@ -1090,17 +1093,31 @@ async def generate_answer(
         aspect_plan=aspect_plan,
         evidence_gate_warning=evidence_gate_warning,
     )
-    system_prompt = (
-        "你是法规问答助手。只能根据 context 回答，所有事实结论必须带 [1]、[2] 这类编号。"
-        "严禁输出 [证据 n] 或“证据 n”。"
-    )
-    system_prompt += (
-        "引用纪律：context 证据编号已按相关性降序排列，[1] 是最高分证据。"
-        "每个事实结论必须使用最直接、最小充分的正文编号引用，例如 [1] 或 [1][2]。"
-        "不同事实来自不同证据时必须分别引用，禁止用宽泛编号覆盖未被该证据支持的结论。"
-        "严禁编造 context 中不存在的编号；严禁输出 [证据 n]、证据n、来源n、[1,2]、[1-3]、[[1]]。"
-        "如果 context 不支持结论，必须说明证据不足。"
-    )
+    namespaced_context = bool(re.search(r"\[[A-Z]-\d+\]", context or ""))
+    if namespaced_context:
+        system_prompt = (
+            "你是法规问答助手。只能根据 context 回答，所有事实结论必须带 [A-1]、[B-1] 这类法规专属编号。"
+            "严禁输出 [证据 n] 或“证据 n”。"
+        )
+        system_prompt += (
+            "多文档对比模式：context 使用法规专属编号空间，例如 [A-1]、[B-1]。"
+            "回答每部法规的结论时必须使用该法规自己的专属编号；严禁用 A 组编号支持 B 组法规，或用 B 组编号支持 A 组法规。"
+            "多文档对比时优先输出 [A-1]、[B-1] 这类编号，不要改写成扁平 [1]、[2]。"
+            "若 context 块中提供了标题和条款号，引用时应写成《法规名称》第x条[A-1]，以便精确对应法条。"
+            "如果 context 不支持结论，必须说明证据不足。"
+        )
+    else:
+        system_prompt = (
+            "你是法规问答助手。只能根据 context 回答，所有事实结论必须带 [1]、[2] 这类编号。"
+            "严禁输出 [证据 n] 或“证据 n”。"
+        )
+        system_prompt += (
+            "引用纪律：context 证据编号已按相关性降序排列，[1] 是最高分证据。"
+            "每个事实结论必须使用最直接、最小充分的正文编号引用，例如 [1] 或 [1][2]。"
+            "不同事实来自不同证据时必须分别引用，禁止用宽泛编号覆盖未被该证据支持的结论。"
+            "严禁编造 context 中不存在的编号；严禁输出 [证据 n]、证据n、来源n、[1,2]、[1-3]、[[1]]。"
+            "如果 context 不支持结论，必须说明证据不足。"
+        )
     system_prompt += legal_clause_answer_rules(query, context, answer_mode)
     payload = llm_client.build_payload(
         system_prompt,

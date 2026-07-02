@@ -1,4 +1,5 @@
 ﻿import asyncio
+import re
 from typing import Any, Dict, List, Optional
 
 from app.core.legal_intent import classify_query_intent_fallback, normalize_legal_intent
@@ -18,12 +19,129 @@ from app.core.query.recall_flow import (
 from app.core.retrieval.ranking import build_retrieval_stage_trace
 
 
+COMPARE_HARD_REFUSAL_REASONS = {
+    "partial_evidence_or_missing_target",
+    "compare_source_missing",
+    "compare_coverage_insufficient",
+}
+
+
+def _is_bare_clause_intent_query(runtime: Any, query: str) -> bool:
+    try:
+        normalized = runtime.common.normalize_query(query)
+    except Exception:
+        normalized = str(query or "")
+    compact = re.sub(r"[\s，。！？；：、,.!?;:]+", "", normalized)
+    if not compact or len(compact) > 18:
+        return False
+    if not re.search(r"^第[一二三四五六七八九十百千万零〇0-9]+[条款项]", compact):
+        return False
+    if runtime.routing.has_contextual_doc_reference(compact):
+        return False
+    allowed_tail = re.sub(r"^第[一二三四五六七八九十百千万零〇0-9]+[条款项]", "", compact)
+    if not allowed_tail:
+        return True
+    return bool(re.fullmatch(r"(规定|规定了什么|是什么|内容|内容是什么|如何规定|怎么规定|说了什么)", allowed_tail))
+
+
+def _source_resolution_has_target(source_resolution: Dict[str, Any]) -> bool:
+    values = (
+        source_resolution.get("target_fnames")
+        or source_resolution.get("sources")
+        or source_resolution.get("target_sources")
+        or []
+    )
+    return bool(source_resolution.get("resolved") and list(values or []))
+
+
+def _active_source_lock(runtime: Any, user_id: str) -> str:
+    try:
+        current = runtime.state_store.get_current_locked_document(user_id)
+    except Exception:
+        current = None
+    if not isinstance(current, dict) or not current.get("reliable", True):
+        return ""
+    try:
+        source = runtime.common.normalize_filename(current.get("source") or "")
+    except Exception:
+        source = str((current or {}).get("source") or "").strip()
+    if not source:
+        return ""
+    try:
+        if not runtime.source.visible_document_exists(source):
+            return ""
+    except Exception:
+        pass
+    return source
+
+
+def _query_has_explicit_source_signal(runtime: Any, query: str, source_resolution: Dict[str, Any]) -> bool:
+    if _source_resolution_has_target(source_resolution):
+        return True
+    try:
+        if runtime.routing.extract_filename_candidates(query):
+            return True
+    except Exception:
+        pass
+    try:
+        if runtime.routing.extract_explicit_regulation_mentions(query):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _missing_document_clarification_source_resolution(
+    source_resolution: Dict[str, Any],
+    query: str,
+    *,
+    reason: str = "missing_document_clarification",
+    trace_key: str = "missing_document_global_search_blocked",
+) -> Dict[str, Any]:
+    return {
+        **dict(source_resolution or {}),
+        "route": "document_clarification",
+        "required": True,
+        "resolved": False,
+        "status": "not_found",
+        "scope_mode": "not_found",
+        "fallback_allowed": False,
+        "forced_retrieval_allowed": False,
+        "sources": [],
+        "target_fnames": [],
+        "target_sources": [],
+        "target_doc_ids": [],
+        "candidates": [],
+        "reason": reason,
+        "clarification": "请补充要查询的法规或文档名称。",
+        "target_text": query,
+        "lock_mode": "none",
+        "lock_confidence": 0.0,
+        "lock_message_prefix": "",
+        "source_lock_kind": "missing_document_clarification",
+        "source_resolution_trace": {
+            **dict((source_resolution or {}).get("source_resolution_trace") or {}),
+            trace_key: True,
+        },
+    }
+
+
 def _compare_process_min_required(recall: Dict[str, Any]) -> int:
     coverage = recall.get("compare_coverage") if isinstance(recall.get("compare_coverage"), dict) else {}
     try:
         return max(1, int(coverage.get("min_required_per_doc") or 1))
     except Exception:
         return 1
+
+
+def _compare_fixed_context_limits(recall: Dict[str, Any], group_count: int, min_required: int) -> tuple[int, int]:
+    groups = max(1, int(group_count or 1))
+    try:
+        final_n = max(1, int(recall.get("final_n") or 1))
+    except Exception:
+        final_n = 1
+    per_source = max(2, int(min_required or 1), (final_n + groups - 1) // groups)
+    return per_source, per_source * groups
 
 
 def _process_doc_source(runtime: Any, doc: Any) -> str:
@@ -335,6 +453,114 @@ def _build_compare_process_coverage(
         "target_docs": target_docs,
         "any_doc_missing": any(item.get("coverage") == "missing" for item in target_docs),
         "any_doc_insufficient": any(item.get("coverage") in {"missing", "insufficient"} for item in target_docs),
+    }
+
+
+def _compare_name_surface(runtime: Any, value: str, *, source_name: bool = False) -> str:
+    raw = str(value or "").strip()
+    if source_name:
+        try:
+            normalized_source = runtime.common.normalize_filename(raw)
+        except Exception:
+            normalized_source = raw
+        try:
+            raw = runtime.source.display_title(normalized_source) or normalized_source or raw
+        except Exception:
+            raw = normalized_source or raw
+    try:
+        text = runtime.common.normalize_query(raw)
+    except Exception:
+        text = raw
+    text = re.sub(r"\.(docx|doc|pdf|xlsx|xls|txt|md)$", "", text, flags=re.I)
+    text = re.sub(r"[_\-\s]*\d{4}[-_/年]?\d{0,2}[-_/月]?\d{0,2}日?", "", text)
+    text = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", text)
+    for suffix in ("实施细则", "暂行办法", "管理办法", "管理条例", "议事规则", "条例", "规定", "办法", "规则", "细则", "版本", "相关", "关于"):
+        text = text.replace(suffix, "")
+    return text
+
+
+def _ngrams(text: str, size: int) -> List[str]:
+    text = str(text or "")
+    if len(text) < size:
+        return []
+    return [text[index:index + size] for index in range(0, len(text) - size + 1)]
+
+
+def _compare_name_match(runtime: Any, expected_target: str, source_name: str) -> bool:
+    expected = _compare_name_surface(runtime, expected_target)
+    source = _compare_name_surface(runtime, source_name, source_name=True)
+    if not expected or not source:
+        return False
+    if expected == source:
+        return True
+    if len(expected) >= 4 and (expected in source or source in expected):
+        return True
+    tri_hits = {gram for gram in _ngrams(expected, 3) if gram in source}
+    if len(tri_hits) >= 2:
+        return True
+    bi_hits = {gram for gram in _ngrams(expected, 2) if gram in source}
+    return len(bi_hits) >= 2 and len(expected) <= 8
+
+
+def _compare_expected_targets_from_recall(recall: Dict[str, Any]) -> List[str]:
+    targets: List[str] = []
+
+    def add(value: Any) -> None:
+        text = str(value or "").strip()
+        if text and text not in targets:
+            targets.append(text)
+
+    trace = recall.get("source_resolution_trace") if isinstance(recall.get("source_resolution_trace"), dict) else {}
+    router = trace.get("agentic_router") if isinstance(trace.get("agentic_router"), dict) else {}
+    if not router:
+        intent = recall.get("intent_classification") if isinstance(recall.get("intent_classification"), dict) else {}
+        router = intent.get("agentic_router") if isinstance(intent.get("agentic_router"), dict) else {}
+    for item in router.get("sub_queries") or []:
+        if not isinstance(item, dict):
+            continue
+        add(item.get("source"))
+        add(item.get("doc_prior_query"))
+    for item in router.get("documents") or []:
+        add(item)
+    return targets[:8]
+
+
+def _evaluate_compare_evidence_target_alignment(
+    runtime: Any,
+    recall: Dict[str, Any],
+    compare_process_groups: List[Dict[str, Any]],
+    process_docs: List[Any],
+) -> Dict[str, Any]:
+    expected_targets = _compare_expected_targets_from_recall(recall)
+    if not expected_targets:
+        return {"status": "not_checked", "expected_targets": [], "missing_targets": []}
+    actual_sources: List[str] = []
+
+    def add_source(source: Any) -> None:
+        try:
+            normalized = runtime.common.normalize_filename(str(source or ""))
+        except Exception:
+            normalized = str(source or "").strip()
+        if normalized and normalized not in actual_sources:
+            actual_sources.append(normalized)
+
+    for group in compare_process_groups or []:
+        add_source(group.get("source"))
+        for doc in list(group.get("gate_docs") or []) + list(group.get("display_docs") or []) + list(group.get("docs") or []):
+            add_source(_process_doc_source(runtime, doc))
+    for doc in process_docs or []:
+        add_source(_process_doc_source(runtime, doc))
+
+    missing = [
+        target
+        for target in expected_targets
+        if not any(_compare_name_match(runtime, target, source) for source in actual_sources)
+    ]
+    return {
+        "status": "failed" if missing else "passed",
+        "expected_targets": expected_targets,
+        "actual_sources": actual_sources,
+        "missing_targets": missing,
     }
 
 
@@ -665,6 +891,80 @@ async def prepare_lightweight_recall_prelude(
     classifier_compare = None
     classifier_action = ""
     forced_retrieval = has_forced_retrieval_signal(runtime, query)
+
+    active_lock_source = _active_source_lock(runtime, user_id)
+    if (
+        active_lock_source
+        and not _source_resolution_has_target(source_resolution)
+        and source_resolution_global_fallback(source_resolution)
+    ):
+        original_source_resolution = dict(source_resolution or {})
+        source_resolution = runtime.source.build_source_resolution_result(
+            route=rule_query_route if rule_query_route not in {"document_clarification", "refusal"} else "content_qa",
+            required=False,
+            resolved=True,
+            sources=[active_lock_source],
+            candidates=[active_lock_source],
+            reason="active_source_lock",
+            strip_title_mentions=False,
+            clarification="",
+            target_text=active_lock_source,
+            lock_mode="hard_lock",
+            lock_confidence=1.0,
+            source_lock_kind="active_source_lock",
+            source_resolution_trace={
+                **dict(original_source_resolution.get("source_resolution_trace") or {}),
+                "active_source_lock_inherited": True,
+                "active_source": active_lock_source,
+            },
+        )
+        rule_query_route = source_resolution.get("route") or rule_query_route
+        query_route = rule_query_route
+
+    if (
+        not _query_has_explicit_source_signal(runtime, query, source_resolution)
+        and not active_lock_source
+        and query_route in {"business_topic_qa", "open_regulation_qa", "content_qa"}
+    ):
+        source_resolution = _missing_document_clarification_source_resolution(source_resolution, query)
+        early_return = _empty_recall_result(
+            runtime,
+            query,
+            user_id,
+            qtype,
+            llm_parse,
+            intent_classification,
+            source_resolution,
+            "document_clarification",
+            classifier_compare,
+            reason="missing_document_clarification",
+            quality="valid",
+            intent_tier="missing_document_requires_source",
+        )
+        early_return.update(
+            {
+                "source_lock_required": True,
+                "resolved_source_lock": False,
+                "source_lock_reason": "missing_document_clarification",
+                "clarification": source_resolution.get("clarification") or "",
+            }
+        )
+        return {
+            "early_return": early_return,
+            "intent_classification": intent_classification,
+            "qtype": qtype,
+            "llm_parse": llm_parse,
+            "query_explicit_fnames": query_explicit_fnames,
+            "query_explicit_set": set(query_explicit_fnames),
+            "source_resolution": source_resolution,
+            "query_route": "document_clarification",
+            "classifier_compare": classifier_compare,
+            "classifier_action": classifier_action,
+            "query_quality": {"quality": "valid", "reason": "", "tier": "missing_document_requires_source"},
+            "intent_tier": "missing_document_requires_source",
+            "tool_route": tool_route,
+        }
+
     if (
         bool(intent_classification.get("search_database_tool_used"))
         and source_resolution_global_fallback(source_resolution)
@@ -686,6 +986,61 @@ async def prepare_lightweight_recall_prelude(
             **dict(intent_classification),
             "forced_retrieval_fallback": True,
             "original_route": classifier_route,
+        }
+
+    if _is_bare_clause_intent_query(runtime, query) and not _source_resolution_has_target(source_resolution):
+        source_resolution = {
+            **dict(source_resolution or {}),
+            "route": "document_clarification",
+            "required": True,
+            "resolved": False,
+            "sources": [],
+            "target_fnames": [],
+            "target_sources": [],
+            "reason": "missing_document_clarification",
+            "clarification": "请补充要查询的法规或文档名称，再定位具体条款。",
+            "target_text": query,
+            "source_resolution_trace": {
+                **dict((source_resolution or {}).get("source_resolution_trace") or {}),
+                "bare_clause_intent_blocked": True,
+            },
+        }
+        early_return = _empty_recall_result(
+            runtime,
+            query,
+            user_id,
+            qtype,
+            llm_parse,
+            intent_classification,
+            source_resolution,
+            "document_clarification",
+            classifier_compare,
+            reason="missing_document_clarification",
+            quality="valid",
+            intent_tier="bare_clause_requires_source",
+        )
+        early_return.update(
+            {
+                "source_lock_required": True,
+                "resolved_source_lock": False,
+                "source_lock_reason": "missing_document_clarification",
+                "clarification": source_resolution.get("clarification") or "",
+            }
+        )
+        return {
+            "early_return": early_return,
+            "intent_classification": intent_classification,
+            "qtype": qtype,
+            "llm_parse": llm_parse,
+            "query_explicit_fnames": query_explicit_fnames,
+            "query_explicit_set": set(query_explicit_fnames),
+            "source_resolution": source_resolution,
+            "query_route": "document_clarification",
+            "classifier_compare": classifier_compare,
+            "classifier_action": classifier_action,
+            "query_quality": {"quality": "valid", "reason": "", "tier": "bare_clause_requires_source"},
+            "intent_tier": "bare_clause_requires_source",
+            "tool_route": tool_route,
         }
 
     query_quality = runtime.guardrails.deep_quality_state(query, llm_parse=llm_parse, source_resolution=source_resolution)
@@ -997,7 +1352,12 @@ async def prepare_process_evidence_context(
                     "score_mode": item.get("score_mode") or recall["score_mode"],
                 }
             )
-        process_docs = runtime.evidence.merge_compare_source_doc_groups(compare_process_groups, per_source_limit=max(2, recall["final_n"]))
+        fixed_per_source, fixed_total_limit = _compare_fixed_context_limits(recall, len(compare_process_groups), min_required_per_doc)
+        process_docs = runtime.evidence.merge_compare_source_doc_groups_fixed_budget(
+            compare_process_groups,
+            total_limit=fixed_total_limit,
+            min_per_source=fixed_per_source,
+        )
         process_docs = _ensure_compare_process_quota(runtime, process_docs, compare_process_groups, min_required_per_doc)
         display_seed_docs = runtime.evidence.merge_compare_source_doc_groups(
             [
@@ -1007,13 +1367,32 @@ async def prepare_process_evidence_context(
                 }
                 for item in compare_process_groups
             ],
-            per_source_limit=max(2, recall["final_n"]),
+            per_source_limit=fixed_per_source,
         )
+        recall["compare_fixed_per_source"] = fixed_per_source
+        recall["compare_fixed_total_limit"] = fixed_total_limit
         observations = await runtime.evidence.compare_observations_async(query, compare_process_groups, qfilters=recall["qfilters"])
         compare_coverage = _build_compare_process_coverage(runtime, recall, compare_process_groups, process_docs)
+        target_alignment = _evaluate_compare_evidence_target_alignment(runtime, recall, compare_process_groups, process_docs)
+        if target_alignment.get("status") != "not_checked":
+            compare_coverage = {
+                **dict(compare_coverage or {}),
+                "target_alignment": target_alignment,
+                "expected_targets": list(target_alignment.get("expected_targets") or []),
+            }
         if compare_coverage:
             target_docs = list(compare_coverage.get("target_docs") or [])
-            if compare_coverage.get("any_doc_missing"):
+            if target_alignment.get("status") == "failed":
+                observations = {
+                    **dict(observations or {}),
+                    "compare_status": "partial_evidence_or_missing_target",
+                    "answer_scope": "refusal",
+                    "evidence_coverage_reason": "partial_evidence_or_missing_target",
+                    "compare_coverage": compare_coverage,
+                    "compare_target_alignment_failed": True,
+                    "compare_missing_targets": list(target_alignment.get("missing_targets") or []),
+                }
+            elif compare_coverage.get("any_doc_missing"):
                 observations = {
                     **dict(observations or {}),
                     "compare_status": "partial_sources_missing"
@@ -1155,9 +1534,11 @@ def downgrade_evidence_refusal_to_prompt_warning(
     observations = dict(observations or {})
     if not process_docs:
         return observations
+    reason = str(observations.get("evidence_coverage_reason") or "").strip()
+    if reason in COMPARE_HARD_REFUSAL_REASONS:
+        return observations
     if str(observations.get("answer_scope") or "") in {"full", "guarded_full"}:
         return observations
-    reason = str(observations.get("evidence_coverage_reason") or "").strip()
     return {
         **observations,
         "answer_scope": "guarded_full",
@@ -1174,7 +1555,12 @@ def process_refusal_reason(
     observations: Dict[str, Any],
     process_docs: Optional[List[Any]] = None,
 ) -> Optional[str]:
-    if process_docs and str((observations or {}).get("answer_scope") or "") not in {"full", "guarded_full"}:
+    hard_reason = str((observations or {}).get("evidence_coverage_reason") or "").strip()
+    if (
+        process_docs
+        and str((observations or {}).get("answer_scope") or "") not in {"full", "guarded_full"}
+        and hard_reason not in COMPARE_HARD_REFUSAL_REASONS
+    ):
         return None
     allow_partial_answer = bool(
         recall.get("query_route") not in {"multi_doc_compare", "single_doc_compare"}
@@ -1409,8 +1795,8 @@ def finalize_generated_answer(
     legal_clause_enumeration = runtime.answer.is_legal_clause_enumeration(query, evidence, answer_mode)
     if structured_answer:
         answer = runtime.answer.render_structured_markdown(structured_answer)
-    elif aspect_plan and process_docs and qtype not in {"compare", "compare_degraded"} and not legal_clause_enumeration:
-        answer = runtime.answer.ensure_aspect_coverage(answer, aspect_plan, process_docs)
+    # Do not append missing-aspect snippets after generation. In legal RAG,
+    # an omitted aspect is safer than injecting weakly grounded extra claims.
 
     if answer_mode == "rag_related_doc" and evidence and "[" not in answer:
         answer = runtime.answer.related_doc_grounded_answer(process_docs)

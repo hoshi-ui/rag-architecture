@@ -1,4 +1,4 @@
-from evals.runners.score_documents_metrics import _retrieved_docs, _score_answer_relevance, _score_retrieval
+from evals.runners.score_documents_metrics import _retrieved_docs, _score_answer_relevance, _score_negative_control, _score_retrieval
 from evals.runners.score_documents_metrics import _hit_breakdown
 
 
@@ -119,3 +119,62 @@ def test_retrieved_docs_stops_at_top_k_when_score_cliff_exists():
     selected = _retrieved_docs(result, "hybrid_rerank", top_k=5)
 
     assert len(selected) == 5
+
+
+def test_retrieved_docs_falls_back_to_retrieved_contexts():
+    docs = [{"source": "demo.docx", "text": "chunk", "score": 0.9}]
+    result = {"retrieved_contexts": docs}
+
+    selected = _retrieved_docs(result, "hybrid_rerank", top_k=5)
+
+    assert selected == docs
+
+
+def test_negative_control_allows_kb_debunk_against_allowed_source():
+    allowed = "\u6797\u829d\u5e02\u51fa\u79df\u623f\u5b89\u5168\u7ba1\u7406\u6761\u4f8b_2024-12-06_2025-01-01.docx"
+    actual = "\u6797\u829d\u5e02\u51fa\u79df\u623f\u5b89\u5168\u7ba1\u7406\u6761\u4f8b_2024-12-06_2025-01-01.pdf"
+    case = {
+        "expected_behavior": "out_of_scope",
+        "expected_no_retrieval": False,
+        "allow_knowledge_base_debunk": True,
+        "allowed_retrieval_sources": [allowed],
+    }
+    result = {
+        "answer": "\u300a\u6797\u829d\u5e02\u51fa\u79df\u623f\u5b89\u5168\u7ba1\u7406\u6761\u4f8b\u300b\u4e0d\u8986\u76d6\u516c\u53f8\u88c1\u5458\u8865\u507f\uff0c\u73b0\u6709\u8bc1\u636e\u4e0d\u8db3\u3002",
+        "retrieved_contexts": [{"source": actual, "text": "\u51fa\u79df\u623f\u5b89\u5168\u7ba1\u7406", "score": 0.9}],
+    }
+
+    scored = _score_negative_control(case, result, top_k=5, retrieval_key="hybrid_rerank")
+
+    assert scored["negative_control_pass"] is True
+    assert scored["route_pass"] is False
+    assert scored["route_or_answer_pass"] is True
+    assert scored["retrieved_count"] == 1
+    assert scored["no_wrong_source_pass"] is True
+
+
+def test_negative_control_rejects_kb_debunk_from_wrong_source():
+    case = {
+        "expected_behavior": "out_of_scope",
+        "expected_no_retrieval": False,
+        "allow_knowledge_base_debunk": True,
+        "allowed_retrieval_sources": [
+            "\u6797\u829d\u5e02\u51fa\u79df\u623f\u5b89\u5168\u7ba1\u7406\u6761\u4f8b_2024-12-06_2025-01-01.docx"
+        ],
+    }
+    result = {
+        "answer": "\u8be5\u6cd5\u89c4\u4e0d\u8986\u76d6\u516c\u53f8\u88c1\u5458\u8865\u507f\uff0c\u73b0\u6709\u8bc1\u636e\u4e0d\u8db3\u3002",
+        "retrieved_contexts": [
+            {
+                "source": "\u804a\u57ce\u5e02\u517b\u72ac\u7ba1\u7406\u6761\u4f8b_2020-06-15_2020-09-01.docx",
+                "text": "\u517b\u72ac\u7ba1\u7406",
+                "score": 0.9,
+            }
+        ],
+    }
+
+    scored = _score_negative_control(case, result, top_k=5, retrieval_key="hybrid_rerank")
+
+    assert scored["negative_control_pass"] is False
+    assert scored["route_or_answer_pass"] is True
+    assert scored["no_wrong_source_pass"] is False

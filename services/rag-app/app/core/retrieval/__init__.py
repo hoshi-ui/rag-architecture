@@ -221,6 +221,14 @@ async def run_target_scoped_recall(
     dense_rank_map = fusion["dense_rank_map"]
     lex_rank_map = fusion["lex_rank_map"]
     source_signals = fusion["source_signals"]
+    docs = evidence_core.pin_article_hits(
+        runtime.evidence_context(),
+        " ".join([effective_query, section_query, retrieval_query, query]),
+        docs,
+        qfilters=qfilters,
+        article_ids=article_ids,
+        absolute_bonus=float(runtime.config_value("ARTICLE_ID_PIN_ABSOLUTE_BONUS", 1_000_000.0) or 1_000_000.0),
+    )
 
     chunk_rerank_enabled = runtime.should_apply_chunk_rerank(docs[:pool_n], dense_rank_map, lex_rank_map, source_signals, enable_rerank)
     doc_title = ""

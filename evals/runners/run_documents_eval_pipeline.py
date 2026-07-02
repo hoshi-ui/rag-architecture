@@ -12,7 +12,10 @@ from pathlib import Path
 from typing import Any
 from urllib import error, request
 
-from score_documents_metrics import _aggregate, _aggregate_by, _score_case
+try:
+    from .score_documents_metrics import _aggregate, _aggregate_by, _score_case
+except ImportError:
+    from score_documents_metrics import _aggregate, _aggregate_by, _score_case
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -348,6 +351,7 @@ def _configured_judge_base_url(args: argparse.Namespace) -> str:
         or os.getenv("JUDGE_BASE_URL")
         or os.getenv("OPENAI_BASE_URL")
         or os.getenv("LLM_BASE_URL")
+        or os.getenv("LLM_API_BASE")
         or ""
     ).rstrip("/")
     if base_url:
@@ -379,6 +383,40 @@ def _configured_judge_model(args: argparse.Namespace) -> str:
     )
 
 
+def _judge_number(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        if text.endswith("/1"):
+            text = text[:-2].strip()
+        try:
+            return float(text)
+        except ValueError:
+            return None
+    return None
+
+
+def _normalize_judge_scores(scores: dict[str, Any]) -> dict[str, Any]:
+    payload = scores.get("scores") if isinstance(scores.get("scores"), dict) else scores
+    normalized = dict(payload or {})
+    for field in ("faithfulness", "answer_relevance", "legal_correctness", "score_0_5"):
+        value = _judge_number(normalized.get(field))
+        if value is None:
+            continue
+        if field == "score_0_5":
+            normalized[field] = max(0.0, min(5.0, value))
+        else:
+            normalized[field] = max(0.0, min(1.0, value))
+    if "reason" not in normalized and isinstance(scores.get("reason"), str):
+        normalized["reason"] = scores.get("reason")
+    return normalized
+
+
 def _call_judge(case: dict[str, Any], result: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     if args.judge_backend == "none":
         return {"enabled": False}
@@ -387,7 +425,14 @@ def _call_judge(case: dict[str, Any], result: dict[str, Any], args: argparse.Nam
 
     base_url = _configured_judge_base_url(args)
     model = _configured_judge_model(args)
-    api_key = str(args.judge_api_key or os.getenv("EVAL_JUDGE_API_KEY") or os.getenv("JUDGE_API_KEY") or os.getenv("OPENAI_API_KEY") or "")
+    api_key = str(
+        args.judge_api_key
+        or os.getenv("EVAL_JUDGE_API_KEY")
+        or os.getenv("JUDGE_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("LLM_API_KEY")
+        or ""
+    )
     if not base_url or not model:
         return {"enabled": True, "error": "missing judge base URL or model"}
     url = _judge_chat_completions_url(base_url)
@@ -408,7 +453,7 @@ def _call_judge(case: dict[str, Any], result: dict[str, Any], args: argparse.Nam
         if not content:
             raise ValueError(f"empty judge content: {json.dumps(response, ensure_ascii=False)[:1200]}")
         try:
-            scores = _parse_judge_json(content)
+            scores = _normalize_judge_scores(_parse_judge_json(content))
         except Exception as exc:
             raise ValueError(f"invalid judge JSON: {type(exc).__name__}: {content[:1200]}") from exc
         return {
@@ -503,6 +548,15 @@ def _judge_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         summary[f"{field}_avg"] = _mean_or_none(values)
     summary["enabled_cases"] = sum(1 for row in rows if (row.get("judge") or {}).get("enabled"))
     summary["errored_cases"] = sum(1 for row in rows if (row.get("judge") or {}).get("error"))
+    errors = []
+    for row in rows:
+        judge = row.get("judge") or {}
+        if judge.get("error"):
+            errors.append({"id": row.get("id"), "error": str(judge.get("error") or "")[:300]})
+        if len(errors) >= 5:
+            break
+    if errors:
+        summary["error_samples"] = errors
     return summary
 
 
